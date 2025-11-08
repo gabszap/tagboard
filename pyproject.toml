@@ -1,9 +1,9 @@
 [project]
 name = "tag-app"
-version = "0.1.0"
+version = "1.0.2"
 description = "tags for game characters"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 authors = [
     { name = "Flet developer", email = "you@example.com" }
 ]

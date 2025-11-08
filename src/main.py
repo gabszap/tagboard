@@ -1,4 +1,7 @@
 import json
+import os
+import shutil
+import sys
 from pathlib import Path
 
 import flet as ft
@@ -8,8 +11,25 @@ from .config import APP_VERSION
 from .data import HASHTAGS
 from .utils import add_game_hashtags, normalize_char_name, organize_characters
 
+
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller/Flet pack"""
+    # PyInstaller creates a temp folder and stores path in _MEIPASS
+    base_path = getattr(sys, "_MEIPASS", None)
+    if base_path is None:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 # Arquivo para salvar tags personalizadas
-CUSTOM_DATA_FILE = Path(__file__).parent.parent / "custom_data.json"
+CUSTOM_DATA_FILE = Path("C:/tag-app/custom_data.json")
+
+# Arquivo para salvar configurações da interface
+CONFIG_FILE = Path("C:/tag-app/config.json")
+
+# Garantir que o diretório existe
+Path("C:/tag-app").mkdir(parents=True, exist_ok=True)
 
 
 def load_custom_data():
@@ -42,6 +62,37 @@ def save_custom_data(custom_tags, custom_tags_games, custom_order):
         print(f"Erro ao salvar dados personalizados: {e}")
 
 
+def load_config():
+    """Carrega configurações da interface do arquivo JSON."""
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return {
+                    "theme_mode": data.get("theme_mode", "dark"),
+                    "layout_mode": data.get("layout_mode", "Colunas"),
+                    "sort_mode": data.get("sort_mode", "alfabetica"),
+                    "advanced_mode": data.get("advanced_mode", False),
+                }
+        except Exception as e:
+            print(f"Erro ao carregar configurações: {e}")
+    return {
+        "theme_mode": "dark",
+        "layout_mode": "Colunas",
+        "sort_mode": "alfabetica",
+        "advanced_mode": False,
+    }
+
+
+def save_config(config):
+    """Salva configurações da interface no arquivo JSON."""
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Erro ao salvar configurações: {e}")
+
+
 def main(page: ft.Page):
     page.title = "Hashtags por Jogo"
     page.padding = 0  # Removido padding para a AppBar ficar edge-to-edge
@@ -49,40 +100,21 @@ def main(page: ft.Page):
     page.window.height = 800
     page.window.resizable = True
 
-    # Carregar dados personalizados do arquivo JSON (prioridade)
+    # Carregar dados personalizados
     file_custom_tags, file_custom_tags_games, file_custom_order = load_custom_data()
 
-    # Carregar configurações salvas
-    saved_theme = page.client_storage.get("theme_mode")
+    # Carregar configurações da interface
+    config = load_config()
+
+    # Aplicar configurações
     page.theme_mode = (
-        ft.ThemeMode.DARK
-        if saved_theme == "dark" or saved_theme is None
-        else ft.ThemeMode.LIGHT
+        ft.ThemeMode.DARK if config["theme_mode"] == "dark" else ft.ThemeMode.LIGHT
     )
 
-    saved_layout = page.client_storage.get("layout_mode")
-    saved_sort = page.client_storage.get("sort_mode")
-    saved_advanced_mode = page.client_storage.get("advanced_mode")
-
-    # Estado do modo avançado (permite editar todas as tags)
-    advanced_mode = {
-        "value": saved_advanced_mode if saved_advanced_mode is not None else False
-    }
-
-    # Usar dados do arquivo JSON como prioridade, fallback para client_storage
-    storage_custom_tags = page.client_storage.get("custom_tags")
-    custom_tags = (
-        file_custom_tags
-        if file_custom_tags
-        else (storage_custom_tags if storage_custom_tags else {})
-    )
-
-    storage_custom_tags_games = page.client_storage.get("custom_tags_games")
-    custom_tags_games = (
-        file_custom_tags_games
-        if file_custom_tags_games
-        else (storage_custom_tags_games if storage_custom_tags_games else {})
-    )
+    # Estados
+    advanced_mode = {"value": config["advanced_mode"]}
+    custom_tags = file_custom_tags
+    custom_tags_games = file_custom_tags_games
 
     # Mesclar tags customizadas com as padrão
     all_hashtags = {**HASHTAGS, **custom_tags}
@@ -92,16 +124,15 @@ def main(page: ft.Page):
 
     # Estado da ordenação (alfabética ou personalizada)
     sort_mode = {
-        "value": saved_sort if saved_sort else "alfabetica"
+        "value": config["sort_mode"]
     }  # Usar dict para manter referência mutável
 
     # Estado do layout (7colunas, grid2x4, grid3x3, tabs)
-    layout_mode = {
-        "value": saved_layout if saved_layout else "Colunas"
-    }  # Padrão: 7 colunas
+    layout_mode = {"value": config["layout_mode"]}  # Padrão: 7 colunas
 
     # Mapeamento de ícones dos jogos
-    game_icons = {
+    game_icons = {}
+    for game, path in {
         "HSR": "src/assets/hsr.png",
         "GI": "src/assets/gi.png",
         "ZZZ": "src/assets/zzz.png",
@@ -109,20 +140,20 @@ def main(page: ft.Page):
         "HI3": "src/assets/hi3.png",
         "BA": "src/assets/bluearchive.png",
         "GF2": "src/assets/gf2.png",
-    }
+    }.items():
+        full_path = resource_path(path)
+        if os.path.exists(full_path):
+            game_icons[game] = str(full_path)
+        else:
+            game_icons[game] = None  # Fallback: sem ícone
 
-    # Salvar ordem personalizada por jogo (para preservar ao trocar de modo)
+    # Ordem personalizada por jogo
     custom_order = {}
     for game_code, game_data in games.items():
-        # Prioridade: arquivo JSON > client_storage > padrão
         if game_code in file_custom_order:
             custom_order[game_code] = file_custom_order[game_code]
         else:
-            saved_order = page.client_storage.get(f"custom_order_{game_code}")
-            if saved_order:
-                custom_order[game_code] = saved_order
-            else:
-                custom_order[game_code] = game_data["chars"].copy()
+            custom_order[game_code] = game_data["chars"].copy()
 
     # Snackbar para feedback
     snackbar = ft.SnackBar(
@@ -324,8 +355,7 @@ def main(page: ft.Page):
                 chars[src_index],
             )
 
-            # Salvar ordem personalizada no storage E no arquivo JSON
-            page.client_storage.set(f"custom_order_{game_code}", chars)
+            # Salvar ordem personalizada no custom_data
             save_custom_data(custom_tags, custom_tags_games, custom_order)
 
             # Reconstruir a seção
@@ -336,7 +366,8 @@ def main(page: ft.Page):
         sort_mode["value"] = sort_dropdown.value
 
         # Salvar preferência
-        page.client_storage.set("sort_mode", sort_mode["value"])
+        config["sort_mode"] = sort_mode["value"]
+        save_config(config)
 
         if sort_mode["value"] == "alfabetica":
             # Não altera custom_order, apenas usa a ordem alfabética para exibir
@@ -441,14 +472,22 @@ def main(page: ft.Page):
 
             else:
                 # Modos Grid e 7 Colunas - com ícone no título
+                icon_element = (
+                    ft.Image(
+                        src=game_icons[game_code],
+                        width=20,
+                        height=20,
+                        fit=ft.ImageFit.CONTAIN,
+                    )
+                    if game_icons.get(game_code)
+                    else ft.Icon(
+                        ft.Icons.VIDEOGAME_ASSET, size=20, color=ft.Colors.AMBER_400
+                    )
+                )
+
                 game_title_row = ft.Row(
                     [
-                        ft.Image(
-                            src=game_icons.get(game_code, "src/assets/icon.png"),
-                            width=20,
-                            height=20,
-                            fit=ft.ImageFit.CONTAIN,
-                        ),
+                        icon_element,
                         ft.Text(
                             game_data["name"],
                             size=16,
@@ -608,9 +647,8 @@ def main(page: ft.Page):
             # Salvar o jogo selecionado para esta tag customizada
             custom_tags_games[char_name] = game_code
 
-            # Salvar no storage E no arquivo JSON
-            page.client_storage.set("custom_tags", custom_tags)
-            page.client_storage.set("custom_tags_games", custom_tags_games)
+            # Salvar no custom_data
+            save_custom_data(custom_tags, custom_tags_games, custom_order)
 
             # Reorganizar jogos completamente
             nonlocal games
@@ -621,9 +659,8 @@ def main(page: ft.Page):
                 if gc not in custom_order:
                     custom_order[gc] = []
                 custom_order[gc] = game_data["chars"].copy()
-                page.client_storage.set(f"custom_order_{gc}", custom_order[gc])
 
-            # Salvar tudo no arquivo JSON
+            # Salvar custom_order no custom_data
             save_custom_data(custom_tags, custom_tags_games, custom_order)
 
             # Reconstruir layout completamente
@@ -751,9 +788,7 @@ def main(page: ft.Page):
                 for game_code in custom_order:
                     if char_name in custom_order[game_code]:
                         custom_order[game_code].remove(char_name)
-                        page.client_storage.set(
-                            f"custom_order_{game_code}", custom_order[game_code]
-                        )
+                        # custom_order será salvo no final
 
             # Adicionar as hashtags do jogo automaticamente
             hashtags_complete = add_game_hashtags(hashtags, new_game)
@@ -765,9 +800,8 @@ def main(page: ft.Page):
             # Salvar o jogo selecionado para esta tag
             custom_tags_games[new_char_name] = new_game
 
-            # Salvar no storage E no arquivo JSON
-            page.client_storage.set("custom_tags", custom_tags)
-            page.client_storage.set("custom_tags_games", custom_tags_games)
+            # Salvar no custom_data
+            save_custom_data(custom_tags, custom_tags_games, custom_order)
 
             # Reorganizar jogos completamente
             nonlocal games
@@ -778,9 +812,8 @@ def main(page: ft.Page):
                 if gc not in custom_order:
                     custom_order[gc] = []
                 custom_order[gc] = game_data["chars"].copy()
-                page.client_storage.set(f"custom_order_{gc}", custom_order[gc])
 
-            # Salvar tudo no arquivo JSON
+            # Salvar custom_order no custom_data
             save_custom_data(custom_tags, custom_tags_games, custom_order)
 
             # Reconstruir layout
@@ -851,9 +884,8 @@ def main(page: ft.Page):
             if char_name in custom_tags_games:
                 del custom_tags_games[char_name]
 
-            # Salvar no storage E no arquivo JSON
-            page.client_storage.set("custom_tags", custom_tags)
-            page.client_storage.set("custom_tags_games", custom_tags_games)
+            # Salvar no custom_data
+            save_custom_data(custom_tags, custom_tags_games, custom_order)
 
             # Reorganizar jogos completamente
             nonlocal games
@@ -864,9 +896,8 @@ def main(page: ft.Page):
                 if gc not in custom_order:
                     custom_order[gc] = []
                 custom_order[gc] = game_data["chars"].copy()
-                page.client_storage.set(f"custom_order_{gc}", custom_order[gc])
 
-            # Salvar tudo no arquivo JSON
+            # Salvar custom_order no custom_data
             save_custom_data(custom_tags, custom_tags_games, custom_order)
 
             # Reconstruir layout
@@ -950,10 +981,8 @@ def main(page: ft.Page):
             for game_code, game_data in games.items():
                 # Resetar para ordem alfabética
                 custom_order[game_code] = game_data["chars"].copy()
-                # Limpar do storage
-                page.client_storage.remove(f"custom_order_{game_code}")
 
-            # Salvar no arquivo JSON
+            # Salvar no custom_data
             save_custom_data(custom_tags, custom_tags_games, custom_order)
 
             # Reconstruir se estiver no modo personalizado
@@ -970,18 +999,19 @@ def main(page: ft.Page):
             # Aplicar tema
             if theme_radio.value == "dark":
                 page.theme_mode = ft.ThemeMode.DARK
-                page.client_storage.set("theme_mode", "dark")
+                config["theme_mode"] = "dark"
             else:
                 page.theme_mode = ft.ThemeMode.LIGHT
-                page.client_storage.set("theme_mode", "light")
+                config["theme_mode"] = "light"
 
             # Aplicar modo avançado
             advanced_mode["value"] = advanced_switch.value
-            page.client_storage.set("advanced_mode", advanced_mode["value"])
+            config["advanced_mode"] = advanced_mode["value"]
 
             # Aplicar layout
             layout_mode["value"] = layout_radio.value
-            page.client_storage.set("layout_mode", layout_mode["value"])
+            config["layout_mode"] = layout_mode["value"]
+            save_config(config)
             rebuild_layout()
 
             close_dialog(settings_dialog)
@@ -1026,6 +1056,66 @@ def main(page: ft.Page):
                         size=11,
                         italic=True,
                         color=ft.Colors.GREY_500,
+                    ),
+                    ft.Divider(),
+                    ft.Text("Backup e Restauração", size=14, weight=ft.FontWeight.BOLD),
+                    ft.Text(
+                        "Exporte ou importe suas configurações e dados personalizados",
+                        size=11,
+                        italic=True,
+                        color=ft.Colors.BLUE_500,
+                    ),
+                    ft.Container(
+                        content=ft.Column(
+                            [
+                                ft.Text(
+                                    "Custom Data (Tags)",
+                                    size=12,
+                                    weight=ft.FontWeight.BOLD,
+                                ),
+                                ft.Row(
+                                    [
+                                        ft.ElevatedButton(
+                                            "Exportar",
+                                            icon=ft.Icons.DOWNLOAD,
+                                            on_click=export_custom_data,
+                                            width=120,
+                                        ),
+                                        ft.ElevatedButton(
+                                            "Importar",
+                                            icon=ft.Icons.UPLOAD,
+                                            on_click=import_custom_data,
+                                            width=120,
+                                        ),
+                                    ],
+                                    spacing=10,
+                                ),
+                                ft.Text(
+                                    "Config (Interface)",
+                                    size=12,
+                                    weight=ft.FontWeight.BOLD,
+                                ),
+                                ft.Row(
+                                    [
+                                        ft.ElevatedButton(
+                                            "Exportar",
+                                            icon=ft.Icons.DOWNLOAD,
+                                            on_click=export_config,
+                                            width=120,
+                                        ),
+                                        ft.ElevatedButton(
+                                            "Importar",
+                                            icon=ft.Icons.UPLOAD,
+                                            on_click=import_config,
+                                            width=120,
+                                        ),
+                                    ],
+                                    spacing=10,
+                                ),
+                            ],
+                            spacing=10,
+                        ),
+                        padding=ft.padding.only(top=5),
                     ),
                 ],
                 tight=True,
@@ -1122,6 +1212,155 @@ def main(page: ft.Page):
 
     # Dicionário para armazenar seções dos jogos
     game_sections = {}
+
+    # FilePicker para import/export
+    file_picker = ft.FilePicker()
+    page.overlay.append(file_picker)
+
+    def export_custom_data(e):
+        """Exporta custom_data.json"""
+
+        def save_result(e: ft.FilePickerResultEvent):
+            if e.path:
+                try:
+                    dest_path = Path(e.path)
+                    if CUSTOM_DATA_FILE.exists():
+                        shutil.copy2(CUSTOM_DATA_FILE, dest_path)
+                        snackbar.content.value = (
+                            f"✅ custom_data.json exportado para {dest_path}!"
+                        )
+                        snackbar.bgcolor = ft.Colors.GREEN_700
+                    else:
+                        snackbar.content.value = (
+                            "❌ Arquivo custom_data.json não encontrado!"
+                        )
+                        snackbar.bgcolor = ft.Colors.ORANGE_700
+                except Exception as ex:
+                    snackbar.content.value = f"❌ Erro ao exportar: {str(ex)}"
+                    snackbar.bgcolor = ft.Colors.RED_700
+                snackbar.open = True
+                page.update()
+
+        file_picker.on_result = save_result
+        file_picker.save_file(
+            dialog_title="Exportar Custom Data",
+            file_name="custom_data.json",
+            allowed_extensions=["json"],
+            file_type=ft.FilePickerFileType.CUSTOM,
+        )
+
+    def export_config(e):
+        """Exporta config.json"""
+
+        def save_result(e: ft.FilePickerResultEvent):
+            if e.path:
+                try:
+                    dest_path = Path(e.path)
+                    if CONFIG_FILE.exists():
+                        shutil.copy2(CONFIG_FILE, dest_path)
+                        snackbar.content.value = (
+                            f"✅ config.json exportado para {dest_path}!"
+                        )
+                        snackbar.bgcolor = ft.Colors.GREEN_700
+                    else:
+                        snackbar.content.value = (
+                            "❌ Arquivo config.json não encontrado!"
+                        )
+                        snackbar.bgcolor = ft.Colors.ORANGE_700
+                except Exception as ex:
+                    snackbar.content.value = f"❌ Erro ao exportar: {str(ex)}"
+                    snackbar.bgcolor = ft.Colors.RED_700
+                snackbar.open = True
+                page.update()
+
+        file_picker.on_result = save_result
+        file_picker.save_file(
+            dialog_title="Exportar Config",
+            file_name="config.json",
+            allowed_extensions=["json"],
+            file_type=ft.FilePickerFileType.CUSTOM,
+        )
+
+    def import_custom_data(e):
+        """Importa custom_data.json"""
+
+        def load_result(e: ft.FilePickerResultEvent):
+            if e.files:
+                src_path = Path(e.files[0].path)
+                try:
+                    shutil.copy2(src_path, CUSTOM_DATA_FILE)
+
+                    # Recarregar dados
+                    nonlocal \
+                        custom_tags, \
+                        custom_tags_games, \
+                        custom_order, \
+                        games, \
+                        all_hashtags
+                    custom_tags, custom_tags_games, custom_order = load_custom_data()
+                    all_hashtags = {**HASHTAGS, **custom_tags}
+                    games = organize_characters(all_hashtags, custom_tags_games)
+
+                    # Recarregar tudo
+                    rebuild_layout()
+
+                    snackbar.content.value = (
+                        "✅ custom_data.json importado com sucesso!"
+                    )
+                    snackbar.bgcolor = ft.Colors.GREEN_700
+                except Exception as ex:
+                    snackbar.content.value = f"❌ Erro ao importar: {str(ex)}"
+                    snackbar.bgcolor = ft.Colors.RED_700
+                snackbar.open = True
+                page.update()
+
+        file_picker.on_result = load_result
+        file_picker.pick_files(
+            dialog_title="Importar Custom Data",
+            allowed_extensions=["json"],
+            file_type=ft.FilePickerFileType.CUSTOM,
+        )
+
+    def import_config(e):
+        """Importa config.json"""
+
+        def load_result(e: ft.FilePickerResultEvent):
+            if e.files:
+                src_path = Path(e.files[0].path)
+                try:
+                    shutil.copy2(src_path, CONFIG_FILE)
+
+                    # Recarregar config
+                    nonlocal config
+                    config = load_config()
+
+                    # Aplicar configurações
+                    page.theme_mode = (
+                        ft.ThemeMode.DARK
+                        if config["theme_mode"] == "dark"
+                        else ft.ThemeMode.LIGHT
+                    )
+                    advanced_mode["value"] = config["advanced_mode"]
+                    layout_mode["value"] = config["layout_mode"]
+                    sort_mode["value"] = config["sort_mode"]
+
+                    # Recarregar tudo
+                    rebuild_layout()
+
+                    snackbar.content.value = "✅ config.json importado com sucesso!"
+                    snackbar.bgcolor = ft.Colors.GREEN_700
+                except Exception as ex:
+                    snackbar.content.value = f"❌ Erro ao importar: {str(ex)}"
+                    snackbar.bgcolor = ft.Colors.RED_700
+                snackbar.open = True
+                page.update()
+
+        file_picker.on_result = load_result
+        file_picker.pick_files(
+            dialog_title="Importar Config",
+            allowed_extensions=["json"],
+            file_type=ft.FilePickerFileType.CUSTOM,
+        )
 
     # Criar layout inicial baseado no modo selecionado
     games_layout = create_games_layout()

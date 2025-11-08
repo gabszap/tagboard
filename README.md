@@ -4,25 +4,35 @@ Aplicativo para gerenciar e copiar hashtags de personagens de diversos jogos.
 
 ## 💾 Sistema de Armazenamento
 
-O app salva suas tags personalizadas em **dois lugares**:
+O app salva suas configurações em **dois arquivos locais permanentes**:
 
-1. **client_storage** (navegador/app) - Para compatibilidade com Flet
-2. **custom_data.json** - Arquivo local permanente
+1. **`custom_data.json`** - Suas tags personalizadas e ordens customizadas
+2. **`config.json`** - Configurações da interface (tema, layout, etc.)
 
-### Localização do arquivo
+### Localização dos arquivos
 
-O arquivo `custom_data.json` fica na raiz do projeto e contém:
+Os arquivos são salvos em **C:/tag-app/**:
+
+#### `C:/tag-app/custom_data.json`
+Contém:
 - `custom_tags`: Suas tags personalizadas
 - `custom_tags_games`: Categorias (jogos) de cada tag
 - `custom_order`: Ordem personalizada por jogo (drag-and-drop)
 
-**Importante**: Este arquivo é ignorado pelo git (`.gitignore`) para não versionar dados pessoais.
+#### `C:/tag-app/config.json`
+Contém:
+- `theme_mode`: Tema do app (dark/light)
+- `layout_mode`: Modo de layout (Colunas, grid2x4, etc.)
+- `sort_mode`: Modo de ordenação (alfabetica/personalizada)
+- `advanced_mode`: Se o modo avançado está ativado
+
+**Importante**: Ambos os arquivos são ignorados pelo git (`.gitignore`) para não versionar dados pessoais.
 
 ### Backup e Portabilidade
 
-Para fazer backup ou transferir suas tags para outro computador:
-1. Copie o arquivo `custom_data.json`
-2. Cole na raiz do projeto no novo local
+Para fazer backup ou transferir suas configurações para outro computador:
+1. Copie os arquivos `C:/tag-app/custom_data.json` e `C:/tag-app/config.json`
+2. Cole na pasta `C:/tag-app/` no novo local
 3. Execute o app normalmente
 
 ## Run the app
