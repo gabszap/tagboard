@@ -1,11 +1,11 @@
 [project]
 name = "tag-app"
-version = "1.0.2"
+version = "1.0.6"
 description = "tags for game characters"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
-    { name = "Flet developer", email = "you@example.com" }
+    { name = "gabszap", email = "gabszap@proton.me" }
 ]
 dependencies = [
   "flet==0.28.3",
@@ -15,7 +15,7 @@ dependencies = [
 [tool.flet]
 # org name in reverse domain name notation, e.g. "com.mycompany".
 # Combined with project.name to build bundle ID for iOS and Android apps
-org = "com.mycompany"
+org = "com.tagapp"
 
 # project display name that is used as an app title on Android and iOS home screens,
 # shown in window titles and about app dialogs on desktop.
@@ -25,7 +25,7 @@ product = "tag-app"
 company = "Flet"
 
 # copyright text to display in about app dialogs
-copyright = "Copyright (C) 2025 by Flet"
+copyright = "Copyright (C) 2025 by gabszap"
 
 [tool.flet.app]
 path = "."
