@@ -408,8 +408,8 @@ def main(page: ft.Page):
                     ft.Text(
                         "Aplicativo para copiar hashtags de personagens de jogos rapidamente."
                     ),
-                    ft.Text("\n📋 Total de personagens: " + str(len(HASHTAGS))),
-                    ft.Text("🎯 Jogos suportados: 7"),
+                    ft.Text("\n📋 Total de personagens: " + str(len(all_hashtags))),
+                    ft.Text("🎯 Jogos suportados: " + str(len(games))),
                     ft.Divider(),
                     ft.Text(
                         "Desenvolvido por gabszap com Flet + Python",
@@ -479,9 +479,28 @@ def main(page: ft.Page):
                     expand=True,
                 )
 
-                # Tab com apenas o nome do jogo
+                # Tab com nome do jogo e badge de contador
+                tab_label = ft.Row(
+                    [
+                        ft.Text(game_data["name"], size=14),
+                        ft.Container(
+                            content=ft.Text(
+                                str(len(game_data["chars"])),
+                                size=11,
+                                color=ft.Colors.WHITE,
+                                weight=ft.FontWeight.BOLD,
+                            ),
+                            bgcolor=ft.Colors.BLUE_700,
+                            padding=ft.padding.symmetric(horizontal=6, vertical=2),
+                            border_radius=10,
+                        ),
+                    ],
+                    spacing=6,
+                    alignment=ft.MainAxisAlignment.CENTER,
+                )
+
                 game_tab = ft.Tab(
-                    text=game_data["name"],
+                    tab_content=tab_label,
                     content=tab_content,
                 )
 
