@@ -8,9 +8,14 @@ import flet as ft
 import pyperclip
 
 from .data import HASHTAGS
-from .utils import add_game_hashtags, normalize_char_name, organize_characters
+from .utils import (
+    DEFAULT_GAMES,
+    add_game_hashtags,
+    normalize_char_name,
+    organize_characters,
+)
 
-APP_VERSION = "1.0.6"
+APP_VERSION = "1.0.7"
 
 
 def resource_path(relative_path):
@@ -44,13 +49,22 @@ def load_custom_data():
                     data.get("custom_tags_games", {}),
                     data.get("custom_order", {}),
                     data.get("custom_categories", {}),
+                    data.get("custom_category_hashtags", {}),
+                    data.get("category_order", list(DEFAULT_GAMES.keys())),
                 )
         except Exception as e:
             print(f"Erro ao carregar dados personalizados: {e}")
-    return {}, {}, {}, {}
+    return {}, {}, {}, {}, {}, list(DEFAULT_GAMES.keys())
 
 
-def save_custom_data(custom_tags, custom_tags_games, custom_order, custom_categories):
+def save_custom_data(
+    custom_tags,
+    custom_tags_games,
+    custom_order,
+    custom_categories,
+    custom_category_hashtags,
+    category_order,
+):
     """Salva dados personalizados no arquivo JSON."""
     try:
         data = {
@@ -58,6 +72,8 @@ def save_custom_data(custom_tags, custom_tags_games, custom_order, custom_catego
             "custom_tags_games": custom_tags_games,
             "custom_order": custom_order,
             "custom_categories": custom_categories,
+            "custom_category_hashtags": custom_category_hashtags,
+            "category_order": category_order,
         }
         with open(CUSTOM_DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -112,6 +128,8 @@ def main(page: ft.Page):
         file_custom_tags_games,
         file_custom_order,
         file_custom_categories,
+        file_custom_category_hashtags,
+        file_category_order,
     ) = load_custom_data()
 
     # Carregar configurações da interface
@@ -127,6 +145,8 @@ def main(page: ft.Page):
     custom_tags = file_custom_tags
     custom_tags_games = file_custom_tags_games
     custom_categories = file_custom_categories
+    custom_category_hashtags = file_custom_category_hashtags
+    category_order = file_category_order
 
     # Mesclar tags customizadas com as padrão
     all_hashtags = {**HASHTAGS, **custom_tags}
@@ -369,7 +389,12 @@ def main(page: ft.Page):
 
             # Salvar ordem personalizada no custom_data
             save_custom_data(
-                custom_tags, custom_tags_games, custom_order, custom_categories
+                custom_tags,
+                custom_tags_games,
+                custom_order,
+                custom_categories,
+                custom_category_hashtags,
+                category_order,
             )
 
             # Reconstruir a seção
@@ -435,11 +460,11 @@ def main(page: ft.Page):
         game_sections.clear()
         game_elements = []
 
-        # Ordem dos jogos padrão + categorias customizadas
-        default_order = ["HSR", "GI", "HI3", "ZZZ", "WW", "BA", "GF2"]
-        all_game_codes = default_order + [
-            code for code in games.keys() if code not in default_order
-        ]
+        # Ordem dos jogos baseada em category_order + categorias que não estão na ordem
+        all_game_codes = category_order.copy()
+        for code in games.keys():
+            if code not in all_game_codes:
+                all_game_codes.append(code)
 
         for game_code in all_game_codes:
             game_data = games.get(game_code)
@@ -739,7 +764,9 @@ def main(page: ft.Page):
             char_name = normalize_char_name(char_name)
 
             # Adicionar as hashtags do jogo automaticamente
-            hashtags_complete = add_game_hashtags(hashtags, game_code)
+            hashtags_complete = add_game_hashtags(
+                hashtags, game_code, custom_category_hashtags
+            )
 
             # Adicionar ao dicionário de tags customizadas
             custom_tags[char_name] = hashtags_complete
@@ -750,7 +777,12 @@ def main(page: ft.Page):
 
             # Salvar no custom_data
             save_custom_data(
-                custom_tags, custom_tags_games, custom_order, custom_categories
+                custom_tags,
+                custom_tags_games,
+                custom_order,
+                custom_categories,
+                custom_category_hashtags,
+                category_order,
             )
 
             # Reorganizar jogos completamente
@@ -767,7 +799,12 @@ def main(page: ft.Page):
 
             # Salvar custom_order no custom_data
             save_custom_data(
-                custom_tags, custom_tags_games, custom_order, custom_categories
+                custom_tags,
+                custom_tags_games,
+                custom_order,
+                custom_categories,
+                custom_category_hashtags,
+                category_order,
             )
 
             # Reconstruir layout completamente
@@ -905,7 +942,9 @@ def main(page: ft.Page):
                         # custom_order será salvo no final
 
             # Adicionar as hashtags do jogo automaticamente
-            hashtags_complete = add_game_hashtags(hashtags, new_game)
+            hashtags_complete = add_game_hashtags(
+                hashtags, new_game, custom_category_hashtags
+            )
 
             # Atualizar/adicionar tag (com novo nome se mudou)
             custom_tags[new_char_name] = hashtags_complete
@@ -916,7 +955,12 @@ def main(page: ft.Page):
 
             # Salvar no custom_data
             save_custom_data(
-                custom_tags, custom_tags_games, custom_order, custom_categories
+                custom_tags,
+                custom_tags_games,
+                custom_order,
+                custom_categories,
+                custom_category_hashtags,
+                category_order,
             )
 
             # Reorganizar jogos completamente
@@ -933,7 +977,12 @@ def main(page: ft.Page):
 
             # Salvar custom_order no custom_data
             save_custom_data(
-                custom_tags, custom_tags_games, custom_order, custom_categories
+                custom_tags,
+                custom_tags_games,
+                custom_order,
+                custom_categories,
+                custom_category_hashtags,
+                category_order,
             )
 
             # Reconstruir layout
@@ -1018,7 +1067,12 @@ def main(page: ft.Page):
 
             # Salvar no custom_data
             save_custom_data(
-                custom_tags, custom_tags_games, custom_order, custom_categories
+                custom_tags,
+                custom_tags_games,
+                custom_order,
+                custom_categories,
+                custom_category_hashtags,
+                category_order,
             )
 
             # Reorganizar jogos completamente
@@ -1035,7 +1089,12 @@ def main(page: ft.Page):
 
             # Salvar custom_order no custom_data
             save_custom_data(
-                custom_tags, custom_tags_games, custom_order, custom_categories
+                custom_tags,
+                custom_tags_games,
+                custom_order,
+                custom_categories,
+                custom_category_hashtags,
+                category_order,
             )
 
             # Reconstruir layout
@@ -1117,11 +1176,21 @@ def main(page: ft.Page):
             width=400,
         )
 
+        category_hashtags_field = ft.TextField(
+            label="Hashtags da Categoria",
+            hint_text="Ex: #NIKKE #ニケ #勝利の女神",
+            width=400,
+            multiline=True,
+            min_lines=2,
+            max_lines=3,
+        )
+
         def save_new_category(e):
             code = category_code_field.value.strip().upper()
             name = category_name_field.value.strip()
+            hashtags = category_hashtags_field.value.strip()
 
-            if not code or not name:
+            if not code or not name or not hashtags:
                 snackbar.content.value = "❌ Preencha todos os campos!"
                 snackbar.bgcolor = ft.Colors.RED_700
                 snackbar.open = True
@@ -1142,9 +1211,21 @@ def main(page: ft.Page):
             # Adicionar categoria customizada
             custom_categories[code] = name
 
+            # Salvar hashtags da categoria
+            custom_category_hashtags[code] = hashtags
+
+            # Adicionar à ordem de categorias
+            if code not in category_order:
+                category_order.append(code)
+
             # Salvar no custom_data
             save_custom_data(
-                custom_tags, custom_tags_games, custom_order, custom_categories
+                custom_tags,
+                custom_tags_games,
+                custom_order,
+                custom_categories,
+                custom_category_hashtags,
+                category_order,
             )
 
             # Reorganizar jogos para incluir nova categoria vazia
@@ -1163,7 +1244,12 @@ def main(page: ft.Page):
 
             # Salvar custom_order atualizado
             save_custom_data(
-                custom_tags, custom_tags_games, custom_order, custom_categories
+                custom_tags,
+                custom_tags_games,
+                custom_order,
+                custom_categories,
+                custom_category_hashtags,
+                category_order,
             )
 
             # Reconstruir layout
@@ -1194,11 +1280,18 @@ def main(page: ft.Page):
                 [
                     category_code_field,
                     category_name_field,
+                    category_hashtags_field,
                     ft.Text(
                         "💡 Dica: Use códigos curtos e únicos (ex: NIKKE, AL, AK)",
                         size=11,
                         italic=True,
                         color=ft.Colors.BLUE_500,
+                    ),
+                    ft.Text(
+                        "As hashtags serão adicionadas automaticamente às tags dessa categoria",
+                        size=11,
+                        italic=True,
+                        color=ft.Colors.GREY_500,
                     ),
                 ],
                 tight=True,
@@ -1220,6 +1313,7 @@ def main(page: ft.Page):
 
     def show_manage_categories_dialog(e):
         """Mostra diálogo para gerenciar categorias customizadas"""
+        nonlocal category_order
 
         def delete_category(code, name):
             """Deleta uma categoria customizada"""
@@ -1247,13 +1341,26 @@ def main(page: ft.Page):
             # Deletar categoria
             del custom_categories[code]
 
+            # Remover hashtags da categoria se existir
+            if code in custom_category_hashtags:
+                del custom_category_hashtags[code]
+
             # Remover do custom_order se existir
             if code in custom_order:
                 del custom_order[code]
 
+            # Remover da ordem de categorias
+            if code in category_order:
+                category_order.remove(code)
+
             # Salvar
             save_custom_data(
-                custom_tags, custom_tags_games, custom_order, custom_categories
+                custom_tags,
+                custom_tags_games,
+                custom_order,
+                custom_categories,
+                custom_category_hashtags,
+                category_order,
             )
 
             # Reorganizar jogos
@@ -1273,10 +1380,10 @@ def main(page: ft.Page):
             page.update()
 
         # Criar lista de categorias customizadas
-        category_list = ft.Column(spacing=10)
+        custom_category_list = ft.Column(spacing=10)
 
         if not custom_categories:
-            category_list.controls.append(
+            custom_category_list.controls.append(
                 ft.Text(
                     "Nenhuma categoria customizada criada ainda.",
                     italic=True,
@@ -1285,7 +1392,7 @@ def main(page: ft.Page):
             )
         else:
             for code, name in custom_categories.items():
-                category_list.controls.append(
+                custom_category_list.controls.append(
                     ft.Container(
                         content=ft.Row(
                             [
@@ -1306,6 +1413,183 @@ def main(page: ft.Page):
                         padding=10,
                     )
                 )
+
+        # Construir ordem atual das categorias para exibição
+        # Primeiro as que estão em category_order, depois as que faltam
+        ordered_categories = []
+        for code in category_order:
+            if code in DEFAULT_GAMES:
+                ordered_categories.append((code, DEFAULT_GAMES[code], "default"))
+            elif code in custom_categories:
+                ordered_categories.append((code, custom_categories[code], "custom"))
+
+        # Adicionar categorias padrão que não estão na ordem
+        for code, name in DEFAULT_GAMES.items():
+            if code not in category_order:
+                ordered_categories.append((code, name, "default"))
+
+        # Adicionar categorias customizadas que não estão na ordem
+        for code, name in custom_categories.items():
+            if code not in category_order:
+                ordered_categories.append((code, name, "custom"))
+
+        # Lista para reordenação com drag & drop
+        reorder_list = ft.Column(spacing=8)
+
+        # Armazena referências dos containers para animação
+        item_refs = {}
+
+        def create_drag_item(code, name, cat_type, index):
+            """Cria um item arrastável"""
+            # Nome com prefixo [Custom] se for categoria customizada
+            display_name = f"[Custom] {name}" if cat_type == "custom" else name
+
+            item_content = ft.Container(
+                content=ft.Row(
+                    [
+                        ft.Text(
+                            display_name,
+                            expand=True,
+                            size=14,
+                            color=ft.Colors.PURPLE_300
+                            if cat_type == "custom"
+                            else ft.Colors.WHITE,
+                        ),
+                        ft.Image(
+                            src="src/assets/drag_handle.svg",
+                            width=20,
+                            height=20,
+                            color=ft.Colors.GREY_500,
+                        ),
+                    ],
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                ),
+                border=ft.border.all(1, ft.Colors.BLUE_GREY_700),
+                border_radius=8,
+                padding=ft.padding.symmetric(horizontal=14, vertical=12),
+                bgcolor=ft.Colors.BLUE_GREY_900,
+                animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
+                animate_opacity=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
+            )
+
+            # Guardar referência
+            item_refs[code] = item_content
+
+            def handle_hover(e):
+                if e.data == "true":
+                    e.control.bgcolor = ft.Colors.BLUE_GREY_800
+                    e.control.border = ft.border.all(1, ft.Colors.BLUE_500)
+                else:
+                    e.control.bgcolor = ft.Colors.BLUE_GREY_900
+                    e.control.border = ft.border.all(1, ft.Colors.BLUE_GREY_700)
+                e.control.update()
+
+            item_content.on_hover = handle_hover
+
+            draggable = ft.Draggable(
+                group="categories",
+                content=item_content,
+                data=code,
+                content_feedback=ft.Container(
+                    content=ft.Text(display_name, size=14, color=ft.Colors.WHITE),
+                    bgcolor=ft.Colors.BLUE_700,
+                    padding=ft.padding.symmetric(horizontal=14, vertical=12),
+                    border_radius=8,
+                    opacity=0.9,
+                    shadow=ft.BoxShadow(
+                        spread_radius=1,
+                        blur_radius=15,
+                        color=ft.Colors.with_opacity(0.4, ft.Colors.BLACK),
+                    ),
+                ),
+            )
+
+            def on_accept(e, dest_code=code):
+                nonlocal category_order
+                # Obter o código da categoria sendo arrastada
+                src = page.get_control(e.src_id)
+                src_code = src.data
+
+                # Se for o mesmo, não fazer nada
+                if src_code == dest_code:
+                    return
+
+                # Feedback visual - destacar os itens sendo trocados
+                if src_code in item_refs:
+                    item_refs[src_code].bgcolor = ft.Colors.GREEN_900
+                    item_refs[src_code].border = ft.border.all(2, ft.Colors.GREEN_400)
+                    item_refs[src_code].update()
+                if dest_code in item_refs:
+                    item_refs[dest_code].bgcolor = ft.Colors.GREEN_900
+                    item_refs[dest_code].border = ft.border.all(2, ft.Colors.GREEN_400)
+                    item_refs[dest_code].update()
+
+                # Garantir que ambos estão na ordem
+                if src_code not in category_order:
+                    category_order.append(src_code)
+                if dest_code not in category_order:
+                    category_order.append(dest_code)
+
+                # Encontrar índices atuais
+                src_index = category_order.index(src_code)
+                dest_index = category_order.index(dest_code)
+
+                # Fazer swap real - trocar posições
+                category_order[src_index] = dest_code
+                category_order[dest_index] = src_code
+
+                # Salvar
+                save_custom_data(
+                    custom_tags,
+                    custom_tags_games,
+                    custom_order,
+                    custom_categories,
+                    custom_category_hashtags,
+                    category_order,
+                )
+
+                # Reconstruir layout principal
+                rebuild_layout()
+
+                # Mostrar feedback de sucesso
+                snackbar.content.value = f"✅ Posições trocadas!"
+                snackbar.bgcolor = ft.Colors.GREEN_700
+                snackbar.open = True
+
+                # Fechar e reabrir o diálogo para atualizar a lista
+                close_dialog(manage_dialog)
+                show_manage_categories_dialog(None)
+
+            def on_will_accept(e):
+                # Feedback visual quando item está sobre o target
+                if e.data == "true":
+                    item_content.bgcolor = ft.Colors.BLUE_900
+                    item_content.border = ft.border.all(2, ft.Colors.BLUE_400)
+                else:
+                    item_content.bgcolor = ft.Colors.BLUE_GREY_900
+                    item_content.border = ft.border.all(1, ft.Colors.BLUE_GREY_700)
+                item_content.update()
+
+            def on_leave(e):
+                item_content.bgcolor = ft.Colors.BLUE_GREY_900
+                item_content.border = ft.border.all(1, ft.Colors.BLUE_GREY_700)
+                item_content.update()
+
+            drag_target = ft.DragTarget(
+                group="categories",
+                content=draggable,
+                data=code,
+                on_accept=on_accept,
+                on_will_accept=on_will_accept,
+                on_leave=on_leave,
+            )
+
+            return drag_target
+
+        for idx, (code, name, cat_type) in enumerate(ordered_categories):
+            item = create_drag_item(code, name, cat_type, idx)
+            item.data = code  # Guardar código no DragTarget
+            reorder_list.controls.append(item)
 
         manage_dialog = ft.AlertDialog(
             title=ft.Row(
@@ -1328,19 +1612,31 @@ def main(page: ft.Page):
                         size=14,
                         weight=ft.FontWeight.BOLD,
                     ),
-                    category_list,
-                    ft.Divider(),
+                    custom_category_list,
                     ft.Text(
                         "⚠️ Só é possível deletar categorias sem tags associadas",
                         size=11,
                         italic=True,
                         color=ft.Colors.ORANGE_500,
                     ),
+                    ft.Divider(),
+                    ft.Text(
+                        "Ordenar Categorias",
+                        size=14,
+                        weight=ft.FontWeight.BOLD,
+                    ),
+                    ft.Text(
+                        "Arraste para reordenar as categorias na tela principal",
+                        size=11,
+                        italic=True,
+                        color=ft.Colors.GREY_500,
+                    ),
+                    reorder_list,
                 ],
                 tight=True,
                 scroll=ft.ScrollMode.AUTO,
                 width=500,
-                height=400,
+                height=500,
             ),
             actions=[
                 ft.TextButton("Fechar", on_click=lambda e: close_dialog(manage_dialog)),
@@ -1391,7 +1687,12 @@ def main(page: ft.Page):
 
             # Salvar no custom_data
             save_custom_data(
-                custom_tags, custom_tags_games, custom_order, custom_categories
+                custom_tags,
+                custom_tags_games,
+                custom_order,
+                custom_categories,
+                custom_category_hashtags,
+                category_order,
             )
 
             # Reconstruir se estiver no modo personalizado
@@ -1731,11 +2032,18 @@ def main(page: ft.Page):
                         custom_tags_games, \
                         custom_order, \
                         custom_categories, \
+                        custom_category_hashtags, \
+                        category_order, \
                         games, \
                         all_hashtags
-                    custom_tags, custom_tags_games, custom_order, custom_categories = (
-                        load_custom_data()
-                    )
+                    (
+                        custom_tags,
+                        custom_tags_games,
+                        custom_order,
+                        custom_categories,
+                        custom_category_hashtags,
+                        category_order,
+                    ) = load_custom_data()
                     all_hashtags = {**HASHTAGS, **custom_tags}
                     games = organize_characters(
                         all_hashtags, custom_tags_games, custom_categories

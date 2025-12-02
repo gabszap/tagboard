@@ -32,9 +32,26 @@ def normalize_char_name(name: str) -> str:
     return name.strip().title()
 
 
-def add_game_hashtags(custom_tags: str, game_code: str) -> str:
-    """Adiciona as hashtags do jogo às tags customizadas"""
+def add_game_hashtags(
+    custom_tags: str, game_code: str, custom_category_hashtags: dict = None
+) -> str:
+    """Adiciona as hashtags do jogo às tags customizadas
+
+    Args:
+        custom_tags: Hashtags do personagem
+        game_code: Código do jogo/categoria
+        custom_category_hashtags: Dicionário com hashtags de categorias customizadas {código: hashtags}
+    """
+    # Primeiro tentar hashtags padrão, depois customizadas
     game_tags = GAME_HASHTAGS.get(game_code, "")
+
+    # Se não encontrou nas padrão, tentar nas customizadas
+    if not game_tags and custom_category_hashtags:
+        game_tags = custom_category_hashtags.get(game_code, "")
+
+    # Se não há hashtags do jogo, retornar apenas as tags do personagem
+    if not game_tags:
+        return custom_tags
 
     # Se já tiver as hashtags do jogo, não adicionar novamente
     if game_code == "HSR" and "#HonkaiStarRail" in custom_tags:
@@ -51,6 +68,12 @@ def add_game_hashtags(custom_tags: str, game_code: str) -> str:
         return custom_tags
     elif game_code == "GI" and "#GenshinImpact" in custom_tags:
         return custom_tags
+
+    # Para categorias customizadas, verificar se já tem a primeira hashtag
+    if custom_category_hashtags and game_code in custom_category_hashtags:
+        first_hashtag = game_tags.split()[0] if game_tags else ""
+        if first_hashtag and first_hashtag in custom_tags:
+            return custom_tags
 
     # Adicionar as hashtags do jogo no início
     return f"{game_tags} {custom_tags}".strip()
