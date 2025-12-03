@@ -1,11 +1,19 @@
 """
-Funções utilitárias para organização de personagens e jogos
+Funções utilitárias para organização de personagens e jogos.
 """
 
+from __future__ import annotations
+from typing import Any
 from .data import HASHTAGS
 
+# Type aliases
+HashtagsDict = dict[str, str]
+CustomGamesMap = dict[str, str]
+CustomCategories = dict[str, str]
+GamesDict = dict[str, dict[str, Any]]
+
 # Hashtags padrão por jogo
-GAME_HASHTAGS = {
+GAME_HASHTAGS: dict[str, str] = {
     "HSR": "#HonkaiStarRail #崩壊スターレイル",
     "GI": "#GenshinImpact #原神",
     "HI3": "#HonkaiImpact3rd #崩壊3rd",
@@ -16,7 +24,7 @@ GAME_HASHTAGS = {
 }
 
 # Jogos padrão
-DEFAULT_GAMES = {
+DEFAULT_GAMES: dict[str, str] = {
     "HSR": "Honkai: Star Rail",
     "GI": "Genshin Impact",
     "HI3": "Honkai Impact 3rd",
@@ -28,19 +36,25 @@ DEFAULT_GAMES = {
 
 
 def normalize_char_name(name: str) -> str:
-    """Normaliza o nome do personagem: primeira letra maiúscula, resto minúscula"""
+    """Normaliza o nome do personagem: primeira letra maiúscula, resto minúscula."""
     return name.strip().title()
 
 
 def add_game_hashtags(
-    custom_tags: str, game_code: str, custom_category_hashtags: dict = None
+    custom_tags: str,
+    game_code: str,
+    custom_category_hashtags: dict[str, str] | None = None,
 ) -> str:
-    """Adiciona as hashtags do jogo às tags customizadas
+    """
+    Adiciona as hashtags do jogo às tags customizadas.
 
     Args:
-        custom_tags: Hashtags do personagem
-        game_code: Código do jogo/categoria
-        custom_category_hashtags: Dicionário com hashtags de categorias customizadas {código: hashtags}
+        custom_tags: Hashtags do personagem.
+        game_code: Código do jogo/categoria.
+        custom_category_hashtags: Dicionário com hashtags de categorias customizadas.
+
+    Returns:
+        String com as hashtags completas.
     """
     # Primeiro tentar hashtags padrão, depois customizadas
     game_tags = GAME_HASHTAGS.get(game_code, "")
@@ -79,8 +93,22 @@ def add_game_hashtags(
     return f"{game_tags} {custom_tags}".strip()
 
 
-def get_game(char_name: str, hashtags_dict=None, custom_games_map=None) -> str:
-    """Identifica o jogo com base no mapeamento customizado ou hashtags como fallback"""
+def get_game(
+    char_name: str,
+    hashtags_dict: HashtagsDict | None = None,
+    custom_games_map: CustomGamesMap | None = None,
+) -> str:
+    """
+    Identifica o jogo com base no mapeamento customizado ou hashtags como fallback.
+
+    Args:
+        char_name: Nome do personagem.
+        hashtags_dict: Dicionário de hashtags por personagem.
+        custom_games_map: Mapeamento de personagens para categorias/jogos.
+
+    Returns:
+        Código do jogo.
+    """
     # Se há um mapeamento customizado e o personagem está nele, usar ele (PRINCIPAL)
     if custom_games_map and char_name in custom_games_map:
         return custom_games_map[char_name]
@@ -112,14 +140,20 @@ def get_game(char_name: str, hashtags_dict=None, custom_games_map=None) -> str:
 
 
 def organize_characters(
-    hashtags_dict=None, custom_games_map=None, custom_categories=None
-):
-    """Organiza personagens por jogo e ordena alfabeticamente
+    hashtags_dict: HashtagsDict | None = None,
+    custom_games_map: CustomGamesMap | None = None,
+    custom_categories: CustomCategories | None = None,
+) -> GamesDict:
+    """
+    Organiza personagens por jogo e ordena alfabeticamente.
 
     Args:
-        hashtags_dict: Dicionário de hashtags por personagem
-        custom_games_map: Mapeamento de personagens para categorias/jogos
-        custom_categories: Dicionário de categorias personalizadas {código: nome}
+        hashtags_dict: Dicionário de hashtags por personagem.
+        custom_games_map: Mapeamento de personagens para categorias/jogos.
+        custom_categories: Dicionário de categorias personalizadas {código: nome}.
+
+    Returns:
+        Dicionário com jogos e seus personagens organizados.
     """
     if hashtags_dict is None:
         hashtags_dict = HASHTAGS
@@ -128,7 +162,7 @@ def organize_characters(
         custom_categories = {}
 
     # Iniciar com jogos padrão
-    games = {}
+    games: GamesDict = {}
     for code, name in DEFAULT_GAMES.items():
         games[code] = {"name": name, "chars": []}
 

@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import json
 import os
 import shutil
 import sys
 import tomllib
 from pathlib import Path
-
+from typing import Any
 import flet as ft
 import pyperclip
 
@@ -19,6 +21,16 @@ from .utils import (
     validate_category_code,
 )
 
+# Type aliases
+CustomTags = dict[str, str]
+CustomTagsGames = dict[str, str]
+CustomOrder = dict[str, list[str]]
+CustomCategories = dict[str, str]
+CustomCategoryHashtags = dict[str, str]
+CategoryOrder = list[str]
+ConfigDict = dict[str, Any]
+GamesDict = dict[str, dict[str, Any]]
+
 
 def load_app_version() -> str:
     pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
@@ -29,11 +41,9 @@ def load_app_version() -> str:
     except Exception:
         return "0.0.0"
 
-
 APP_VERSION = load_app_version()
 
-
-def resource_path(relative_path):
+def resource_path(relative_path: str) -> str:
     """Get absolute path to resource, works for dev and for PyInstaller/Flet pack"""
     # PyInstaller creates a temp folder and stores path in _MEIPASS
     base_path = getattr(sys, "_MEIPASS", None)
@@ -53,7 +63,7 @@ CONFIG_FILE = Path("C:/tag-app/config.json")
 Path("C:/tag-app").mkdir(parents=True, exist_ok=True)
 
 
-def migrate_old_format_to_new(old_data: dict) -> dict:
+def migrate_old_format_to_new(old_data: dict[str, Any]) -> dict[str, Any]:
     """Migra o formato antigo para o novo formato agrupado por jogo."""
     # Se já está no novo formato, retornar como está
     if "games" in old_data:
@@ -99,7 +109,14 @@ def migrate_old_format_to_new(old_data: dict) -> dict:
     return {"games": games_data, "category_order": category_order}
 
 
-def load_custom_data():
+def load_custom_data() -> tuple[
+    CustomTags,
+    CustomTagsGames,
+    CustomOrder,
+    CustomCategories,
+    CustomCategoryHashtags,
+    CategoryOrder,
+]:
     """Carrega dados personalizados do arquivo JSON (novo formato agrupado por jogo)."""
     if CUSTOM_DATA_FILE.exists():
         try:
@@ -155,14 +172,19 @@ def load_custom_data():
 
 
 def save_custom_data(
-    custom_tags,
-    custom_tags_games,
-    custom_order,
-    custom_categories,
-    custom_category_hashtags,
-    category_order,
-):
-    """Salva dados personalizados no arquivo JSON (novo formato agrupado por jogo)."""
+    custom_tags: CustomTags,
+    custom_tags_games: CustomTagsGames,
+    custom_order: CustomOrder,
+    custom_categories: CustomCategories,
+    custom_category_hashtags: CustomCategoryHashtags,
+    category_order: CategoryOrder,
+) -> tuple[bool, str]:
+    """
+    Salva dados personalizados no arquivo JSON (novo formato agrupado por jogo).
+
+    Returns:
+        tuple[bool, str]: (sucesso, mensagem de erro se houver)
+    """
     try:
         # Criar estrutura de games
         games_data = {}
@@ -197,11 +219,23 @@ def save_custom_data(
 
         with open(CUSTOM_DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+
+        return True, ""
+    except PermissionError:
+        error_msg = "Sem permissão para salvar o arquivo"
+        print(f"Erro ao salvar dados personalizados: {error_msg}")
+        return False, error_msg
+    except OSError as e:
+        error_msg = f"Erro de sistema ao salvar: {e}"
+        print(f"Erro ao salvar dados personalizados: {error_msg}")
+        return False, error_msg
     except Exception as e:
-        print(f"Erro ao salvar dados personalizados: {e}")
+        error_msg = f"Erro inesperado: {e}"
+        print(f"Erro ao salvar dados personalizados: {error_msg}")
+        return False, error_msg
 
 
-def load_config():
+def load_config() -> ConfigDict:
     """Carrega configurações da interface do arquivo JSON."""
     if CONFIG_FILE.exists():
         try:
@@ -223,7 +257,7 @@ def load_config():
     }
 
 
-def save_config(config):
+def save_config(config: ConfigDict) -> None:
     """Salva configurações da interface no arquivo JSON."""
     try:
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -232,7 +266,7 @@ def save_config(config):
         print(f"Erro ao salvar configurações: {e}")
 
 
-def main(page: ft.Page):
+def main(page: ft.Page) -> None:
     page.title = "Hashtags por Jogo"
     page.padding = 0  # Removido padding para a AppBar ficar edge-to-edge
     page.window.width = 1000
@@ -314,6 +348,29 @@ def main(page: ft.Page):
     )
     page.overlay.append(snackbar)
 
+    def save_data() -> bool:
+        """
+        Wrapper para salvar dados personalizados.
+        Usa as variáveis do escopo de main() automaticamente.
+
+        Returns:
+            bool: True se salvou com sucesso, False caso contrário
+        """
+        success, error_msg = save_custom_data(
+            custom_tags,
+            custom_tags_games,
+            custom_order,
+            custom_categories,
+            custom_category_hashtags,
+            category_order,
+        )
+        if not success:
+            snackbar.content.value = f"❌ Erro ao salvar: {error_msg}"
+            snackbar.bgcolor = ft.Colors.RED_700
+            snackbar.open = True
+            page.update()
+        return success
+
     # Área de teste para colar
     test_area = ft.TextField(
         label="Área de Teste - Cole aqui (Ctrl+V) para verificar",
@@ -324,7 +381,7 @@ def main(page: ft.Page):
         width=550,
     )
 
-    def copy_hashtags(char_name: str):
+    def copy_hashtags(char_name: str) -> None:
         """Copia hashtags para a área de transferência"""
         if char_name in all_hashtags:
             try:
@@ -338,7 +395,7 @@ def main(page: ft.Page):
             snackbar.open = True
             page.update()
 
-    def clear_clipboard(e):
+    def clear_clipboard(e: ft.ControlEvent) -> None:
         """Limpa a área de transferência e a área de teste"""
         try:
             pyperclip.copy("")
@@ -355,7 +412,7 @@ def main(page: ft.Page):
             page.update()
 
     def process_hashtags(raw_input: str) -> str:
-        """Processa entrada de hashtags: adiciona # automaticamente e separa por espaço"""
+        """Processa entrada de hashtags: adiciona # automaticamente e separa por espaço."""
         if not raw_input.strip():
             return ""
 
@@ -375,8 +432,8 @@ def main(page: ft.Page):
 
         return " ".join(processed)
 
-    def show_context_menu(e, char_name: str):
-        """Mostra menu de contexto com opções de editar/deletar"""
+    def show_context_menu(e: ft.ControlEvent, char_name: str) -> None:
+        """Mostra menu de contexto com opções de editar/deletar."""
         # Criar menu de contexto
         context_menu = ft.AlertDialog(
             content=ft.Column(
@@ -409,12 +466,12 @@ def main(page: ft.Page):
         context_menu.open = True
         page.update()
 
-    def filter_characters(e):
-        """Filtra personagens conforme o usuário digita"""
+    def filter_characters(e: ft.ControlEvent) -> None:
+        """Filtra personagens conforme o usuário digita."""
         rebuild_game_sections()
 
-    def rebuild_game_sections():
-        """Reconstrói as seções de jogos com a ordenação atual"""
+    def rebuild_game_sections() -> None:
+        """Reconstrói as seções de jogos com a ordenação atual."""
         search_text = search_field.value.lower()
 
         for game_code, game_data in games.items():
@@ -514,8 +571,8 @@ def main(page: ft.Page):
 
         page.update()
 
-    def handle_drag(e, game_code: str):
-        """Manipula o evento de drag-and-drop para reorganizar personagens"""
+    def handle_drag(e: ft.DragTargetAcceptEvent, game_code: str) -> None:
+        """Manipula o evento de drag-and-drop para reorganizar personagens."""
         src = e.src_id  # ID do elemento arrastado
         target_data = e.control.content.data
         draggable_data = page.get_control(src).data
@@ -533,21 +590,14 @@ def main(page: ft.Page):
                 chars[src_index],
             )
 
-            # Salvar ordem personalizada no custom_data
-            save_custom_data(
-                custom_tags,
-                custom_tags_games,
-                custom_order,
-                custom_categories,
-                custom_category_hashtags,
-                category_order,
-            )
+            # Salvar ordem personalizada
+            save_data()
 
             # Reconstruir a seção
             rebuild_game_sections()
 
-    def change_sort_mode(e):
-        """Altera o modo de ordenação"""
+    def change_sort_mode(e: ft.ControlEvent) -> None:
+        """Muda o modo de ordenação."""
         sort_mode["value"] = sort_dropdown.value
 
         # Salvar preferência
@@ -596,13 +646,13 @@ def main(page: ft.Page):
         dialog.open = True
         page.update()
 
-    def close_dialog(dialog):
-        """Fecha um diálogo"""
+    def close_dialog(dialog: ft.AlertDialog) -> None:
+        """Fecha um diálogo."""
         dialog.open = False
         page.update()
 
-    def create_games_layout():
-        """Cria o layout dos jogos baseado no modo selecionado"""
+    def create_games_layout() -> ft.Control:
+        """Cria o layout dos jogos baseado no modo selecionado."""
         game_sections.clear()
         game_elements = []
 
@@ -765,8 +815,8 @@ def main(page: ft.Page):
                 controls=[first_row, second_row, third_row], spacing=15, expand=True
             )
 
-    def rebuild_layout():
-        """Reconstrói o layout completo"""
+    def rebuild_layout() -> None:
+        """Reconstrói o layout completo."""
         # Limpar apenas os controles da página, não os overlays
         page.controls.clear()
 
@@ -804,8 +854,8 @@ def main(page: ft.Page):
         rebuild_game_sections()
         page.update()
 
-    def show_add_menu(e):
-        """Mostra menu para escolher entre adicionar tag ou categoria"""
+    def show_add_menu(e: ft.ControlEvent) -> None:
+        """Mostra menu para escolher entre adicionar tag ou categoria."""
 
         menu_dialog = ft.AlertDialog(
             title=ft.Row(
@@ -883,8 +933,8 @@ def main(page: ft.Page):
         menu_dialog.open = True
         page.update()
 
-    def show_batch_add_dialog(e):
-        """Mostra diálogo para adicionar tags em lote"""
+    def show_batch_add_dialog(e: ft.ControlEvent) -> None:
+        """Mostra diálogo para adicionar tags em lote."""
 
         batch_field = ft.TextField(
             label="Tags em Lote",
@@ -906,7 +956,7 @@ def main(page: ft.Page):
             menu_height=300,
         )
 
-        def save_batch_tags(e):
+        def save_batch_tags(e: ft.ControlEvent) -> None:
             batch_text = batch_field.value.strip()
             game_code = game_dropdown.value
 
@@ -963,15 +1013,8 @@ def main(page: ft.Page):
                 page.update()
                 return
 
-            # Salvar no custom_data
-            save_custom_data(
-                custom_tags,
-                custom_tags_games,
-                custom_order,
-                custom_categories,
-                custom_category_hashtags,
-                category_order,
-            )
+            # Salvar dados
+            save_data()
 
             # Reorganizar jogos
             nonlocal games
@@ -986,14 +1029,7 @@ def main(page: ft.Page):
                 custom_order[gc] = game_data["chars"].copy()
 
             # Salvar custom_order
-            save_custom_data(
-                custom_tags,
-                custom_tags_games,
-                custom_order,
-                custom_categories,
-                custom_category_hashtags,
-                category_order,
-            )
+            save_data()
 
             # Reconstruir layout
             rebuild_layout()
@@ -1074,8 +1110,8 @@ def main(page: ft.Page):
         batch_dialog.open = True
         page.update()
 
-    def show_add_tag_dialog(e):
-        """Mostra diálogo para adicionar nova tag"""
+    def show_add_tag_dialog(e: ft.ControlEvent) -> None:
+        """Mostra diálogo para adicionar nova tag."""
 
         # Campos do formulário
         char_name_field = ft.TextField(
@@ -1104,7 +1140,7 @@ def main(page: ft.Page):
             menu_height=300,
         )
 
-        def save_new_tag(e):
+        def save_new_tag(e: ft.ControlEvent) -> None:
             char_name = char_name_field.value.strip()
             hashtags = hashtags_field.value.strip()
             game_code = game_dropdown.value
@@ -1134,15 +1170,8 @@ def main(page: ft.Page):
             # Salvar o jogo selecionado para esta tag customizada
             custom_tags_games[char_name] = game_code
 
-            # Salvar no custom_data
-            save_custom_data(
-                custom_tags,
-                custom_tags_games,
-                custom_order,
-                custom_categories,
-                custom_category_hashtags,
-                category_order,
-            )
+            # Salvar dados
+            save_data()
 
             # Reorganizar jogos completamente
             nonlocal games
@@ -1156,15 +1185,8 @@ def main(page: ft.Page):
                     custom_order[gc] = []
                 custom_order[gc] = game_data["chars"].copy()
 
-            # Salvar custom_order no custom_data
-            save_custom_data(
-                custom_tags,
-                custom_tags_games,
-                custom_order,
-                custom_categories,
-                custom_category_hashtags,
-                category_order,
-            )
+            # Salvar custom_order
+            save_data()
 
             # Reconstruir layout completamente
             rebuild_layout()
@@ -1213,8 +1235,8 @@ def main(page: ft.Page):
         add_tag_dialog.open = True
         page.update()
 
-    def show_edit_tag_dialog(char_name: str):
-        """Mostra diálogo para editar tag existente"""
+    def show_edit_tag_dialog(char_name: str) -> None:
+        """Mostra diálogo para editar uma tag existente."""
 
         # Se não for modo avançado, verificar se é tag customizada
         if not advanced_mode["value"] and char_name not in custom_tags:
@@ -1268,7 +1290,7 @@ def main(page: ft.Page):
             menu_height=300,
         )
 
-        def save_edited_tag(e):
+        def save_edited_tag(e: ft.ControlEvent) -> None:
             new_char_name = char_name_field.value.strip()
             hashtags = hashtags_field.value.strip()
             new_game = game_dropdown.value
@@ -1313,15 +1335,8 @@ def main(page: ft.Page):
             # Salvar o jogo selecionado para esta tag
             custom_tags_games[new_char_name] = new_game
 
-            # Salvar no custom_data
-            save_custom_data(
-                custom_tags,
-                custom_tags_games,
-                custom_order,
-                custom_categories,
-                custom_category_hashtags,
-                category_order,
-            )
+            # Salvar dados
+            save_data()
 
             # Reorganizar jogos completamente
             nonlocal games
@@ -1335,15 +1350,8 @@ def main(page: ft.Page):
                     custom_order[gc] = []
                 custom_order[gc] = game_data["chars"].copy()
 
-            # Salvar custom_order no custom_data
-            save_custom_data(
-                custom_tags,
-                custom_tags_games,
-                custom_order,
-                custom_categories,
-                custom_category_hashtags,
-                category_order,
-            )
+            # Salvar custom_order
+            save_data()
 
             # Reconstruir layout
             rebuild_layout()
@@ -1405,8 +1413,8 @@ def main(page: ft.Page):
         edit_tag_dialog.open = True
         page.update()
 
-    def show_delete_tag_dialog(char_name: str):
-        """Mostra diálogo de confirmação para deletar tag"""
+    def show_delete_tag_dialog(char_name: str) -> None:
+        """Mostra diálogo de confirmação para deletar uma tag."""
 
         # Se não for modo avançado, verificar se é tag customizada
         if not advanced_mode["value"] and char_name not in custom_tags:
@@ -1416,7 +1424,7 @@ def main(page: ft.Page):
             page.update()
             return
 
-        def confirm_delete(e):
+        def confirm_delete(e: ft.ControlEvent) -> None:
             # Remover da tag customizada
             if char_name in custom_tags:
                 del custom_tags[char_name]
@@ -1425,15 +1433,8 @@ def main(page: ft.Page):
             if char_name in custom_tags_games:
                 del custom_tags_games[char_name]
 
-            # Salvar no custom_data
-            save_custom_data(
-                custom_tags,
-                custom_tags_games,
-                custom_order,
-                custom_categories,
-                custom_category_hashtags,
-                category_order,
-            )
+            # Salvar dados
+            save_data()
 
             # Reorganizar jogos completamente
             nonlocal games
@@ -1447,15 +1448,8 @@ def main(page: ft.Page):
                     custom_order[gc] = []
                 custom_order[gc] = game_data["chars"].copy()
 
-            # Salvar custom_order no custom_data
-            save_custom_data(
-                custom_tags,
-                custom_tags_games,
-                custom_order,
-                custom_categories,
-                custom_category_hashtags,
-                category_order,
-            )
+            # Salvar custom_order
+            save_data()
 
             # Reconstruir layout
             rebuild_layout()
@@ -1500,8 +1494,8 @@ def main(page: ft.Page):
         delete_tag_dialog.open = True
         page.update()
 
-    def get_all_categories():
-        """Retorna lista de todas as categorias (padrão + customizadas)"""
+    def get_all_categories() -> list[tuple[str, str]]:
+        """Retorna lista de todas as categorias (padrão + customizadas)."""
         default_categories = list(DEFAULT_GAMES.items())
 
         # Adicionar categorias customizadas
@@ -1511,8 +1505,8 @@ def main(page: ft.Page):
 
         return all_categories
 
-    def show_add_category_dialog(e):
-        """Mostra diálogo para adicionar nova categoria"""
+    def show_add_category_dialog(e: ft.ControlEvent) -> None:
+        """Mostra diálogo para adicionar nova categoria."""
 
         # Campos do formulário
         category_code_field = ft.TextField(
@@ -1537,7 +1531,7 @@ def main(page: ft.Page):
             max_lines=3,
         )
 
-        def save_new_category(e):
+        def save_new_category(e: ft.ControlEvent) -> None:
             raw_code = category_code_field.value.strip().upper()
             name = category_name_field.value.strip()
             hashtags = category_hashtags_field.value.strip()
@@ -1574,15 +1568,8 @@ def main(page: ft.Page):
             if code not in category_order:
                 category_order.append(code)
 
-            # Salvar no custom_data
-            save_custom_data(
-                custom_tags,
-                custom_tags_games,
-                custom_order,
-                custom_categories,
-                custom_category_hashtags,
-                category_order,
-            )
+            # Salvar dados
+            save_data()
 
             # Reorganizar jogos para incluir nova categoria vazia
             nonlocal games
@@ -1599,14 +1586,7 @@ def main(page: ft.Page):
                 custom_order[code] = []
 
             # Salvar custom_order atualizado
-            save_custom_data(
-                custom_tags,
-                custom_tags_games,
-                custom_order,
-                custom_categories,
-                custom_category_hashtags,
-                category_order,
-            )
+            save_data()
 
             # Reconstruir layout
             rebuild_layout()
@@ -1667,11 +1647,12 @@ def main(page: ft.Page):
         add_category_dialog.open = True
         page.update()
 
-    def show_manage_categories_dialog(e):
-        """Mostra diálogo para gerenciar categorias customizadas"""
+    def show_manage_categories_dialog(e: ft.ControlEvent) -> None:
+        """Mostra diálogo para gerenciar categorias customizadas."""
         nonlocal category_order
 
         def build_type_badge(cat_type: str) -> ft.Container:
+            """Cria um badge indicando o tipo da categoria."""
             label = "Custom" if cat_type == "custom" else "Padrão"
             bgcolor = (
                 ft.Colors.PURPLE_700 if cat_type == "custom" else ft.Colors.BLUE_700
@@ -1688,8 +1669,8 @@ def main(page: ft.Page):
                 border_radius=10,
             )
 
-        def delete_category(code, name):
-            """Deleta uma categoria customizada"""
+        def delete_category(code: str, name: str) -> None:
+            """Deleta uma categoria customizada."""
             if code not in custom_categories:
                 snackbar.content.value = (
                     "❌ Só é possível deletar categorias customizadas!"
@@ -1704,52 +1685,102 @@ def main(page: ft.Page):
                 char for char, cat in custom_tags_games.items() if cat == code
             ]
 
-            if tags_using_category:
-                snackbar.content.value = f"❌ Não é possível deletar! {len(tags_using_category)} tag(s) usam esta categoria."
+            def confirm_delete_category(e: ft.ControlEvent) -> None:
+                """Confirma e executa a deleção da categoria."""
+                # Deletar todas as tags associadas à categoria
+                for char in tags_using_category:
+                    if char in custom_tags:
+                        del custom_tags[char]
+                    if char in all_hashtags:
+                        del all_hashtags[char]
+                    if char in custom_tags_games:
+                        del custom_tags_games[char]
+
+                # Deletar categoria
+                del custom_categories[code]
+
+                # Remover hashtags da categoria se existir
+                if code in custom_category_hashtags:
+                    del custom_category_hashtags[code]
+
+                # Remover do custom_order se existir
+                if code in custom_order:
+                    del custom_order[code]
+
+                # Remover da ordem de categorias
+                if code in category_order:
+                    category_order.remove(code)
+
+                # Salvar dados
+                save_data()
+
+                # Reorganizar jogos
+                nonlocal games
+                games = organize_characters(
+                    all_hashtags, custom_tags_games, custom_categories
+                )
+
+                # Reconstruir layout
+                rebuild_layout()
+
+                close_dialog(confirm_dialog)
+                close_dialog(manage_dialog)
+
+                deleted_tags_msg = (
+                    f" e {len(tags_using_category)} tag(s)"
+                    if tags_using_category
+                    else ""
+                )
+                snackbar.content.value = (
+                    f"🗑️ Categoria '{name}'{deleted_tags_msg} deletada com sucesso!"
+                )
                 snackbar.bgcolor = ft.Colors.ORANGE_700
+                snackbar.content.color = ft.Colors.WHITE
                 snackbar.open = True
                 page.update()
-                return
 
-            # Deletar categoria
-            del custom_categories[code]
+            # Mostrar diálogo de confirmação
+            if tags_using_category:
+                warning_text = f"⚠️ Esta categoria contém {len(tags_using_category)} tag(s) que também serão apagadas:"
+                tags_list = ", ".join(tags_using_category[:5])
+                if len(tags_using_category) > 5:
+                    tags_list += f" e mais {len(tags_using_category) - 5}..."
+            else:
+                warning_text = "Deseja realmente apagar esta categoria?"
+                tags_list = ""
 
-            # Remover hashtags da categoria se existir
-            if code in custom_category_hashtags:
-                del custom_category_hashtags[code]
-
-            # Remover do custom_order se existir
-            if code in custom_order:
-                del custom_order[code]
-
-            # Remover da ordem de categorias
-            if code in category_order:
-                category_order.remove(code)
-
-            # Salvar
-            save_custom_data(
-                custom_tags,
-                custom_tags_games,
-                custom_order,
-                custom_categories,
-                custom_category_hashtags,
-                category_order,
+            confirm_dialog = ft.AlertDialog(
+                title=ft.Text(f"🗑️ Deletar '{name}'?"),
+                content=ft.Column(
+                    [
+                        ft.Text(warning_text, color=ft.Colors.ORANGE_500),
+                        ft.Text(tags_list, size=12, italic=True)
+                        if tags_list
+                        else ft.Container(),
+                        ft.Text(
+                            "Esta ação não pode ser desfeita.",
+                            size=12,
+                            color=ft.Colors.RED_400,
+                        ),
+                    ],
+                    tight=True,
+                    spacing=10,
+                ),
+                actions=[
+                    ft.TextButton(
+                        "Cancelar",
+                        on_click=lambda e: close_dialog(confirm_dialog),
+                    ),
+                    ft.ElevatedButton(
+                        "Deletar",
+                        bgcolor=ft.Colors.RED_700,
+                        color=ft.Colors.WHITE,
+                        on_click=confirm_delete_category,
+                    ),
+                ],
             )
-
-            # Reorganizar jogos
-            nonlocal games
-            games = organize_characters(
-                all_hashtags, custom_tags_games, custom_categories
-            )
-
-            # Reconstruir layout
-            rebuild_layout()
-
-            close_dialog(manage_dialog)
-            snackbar.content.value = f"🗑️ Categoria '{name}' deletada com sucesso!"
-            snackbar.bgcolor = ft.Colors.ORANGE_700
-            snackbar.content.color = ft.Colors.WHITE
-            snackbar.open = True
+            page.overlay.append(confirm_dialog)
+            confirm_dialog.open = True
             page.update()
 
         # Criar lista de categorias customizadas
@@ -1813,8 +1844,10 @@ def main(page: ft.Page):
         # Armazena referências dos containers para animação
         item_refs = {}
 
-        def create_drag_item(code, name, cat_type, index):
-            """Cria um item arrastável"""
+        def create_drag_item(
+            code: str, name: str, cat_type: str, index: int
+        ) -> ft.DragTarget:
+            """Cria um item arrastável."""
             display_name = name
             type_label = "Custom" if cat_type == "custom" else "Padrão"
             badge = build_type_badge(cat_type)
@@ -1851,7 +1884,8 @@ def main(page: ft.Page):
             # Guardar referência
             item_refs[code] = item_content
 
-            def handle_hover(e):
+            def handle_hover(e: ft.ControlEvent) -> None:
+                """Manipula o evento de hover no item."""
                 if e.data == "true":
                     e.control.bgcolor = ft.Colors.BLUE_GREY_800
                     e.control.border = ft.border.all(1, ft.Colors.BLUE_500)
@@ -1918,21 +1952,14 @@ def main(page: ft.Page):
                 category_order[src_index] = dest_code
                 category_order[dest_index] = src_code
 
-                # Salvar
-                save_custom_data(
-                    custom_tags,
-                    custom_tags_games,
-                    custom_order,
-                    custom_categories,
-                    custom_category_hashtags,
-                    category_order,
-                )
+                # Salvar dados
+                save_data()
 
                 # Reconstruir layout principal
                 rebuild_layout()
 
                 # Mostrar feedback de sucesso
-                snackbar.content.value = f"✅ Posições trocadas!"
+                snackbar.content.value = "✅ Posições trocadas!"
                 snackbar.bgcolor = ft.Colors.GREEN_700
                 snackbar.open = True
 
@@ -1940,7 +1967,8 @@ def main(page: ft.Page):
                 close_dialog(manage_dialog)
                 show_manage_categories_dialog(None)
 
-            def on_will_accept(e):
+            def on_will_accept(e: ft.DragTargetEvent) -> None:
+                """Manipula o evento de pré-aceite do drag."""
                 # Feedback visual quando item está sobre o target
                 if e.data == "true":
                     item_content.bgcolor = ft.Colors.BLUE_900
@@ -1950,7 +1978,8 @@ def main(page: ft.Page):
                     item_content.border = ft.border.all(1, ft.Colors.BLUE_GREY_700)
                 item_content.update()
 
-            def on_leave(e):
+            def on_leave(e: ft.DragTargetEvent) -> None:
+                """Manipula o evento de saída do drag."""
                 item_content.bgcolor = ft.Colors.BLUE_GREY_900
                 item_content.border = ft.border.all(1, ft.Colors.BLUE_GREY_700)
                 item_content.update()
@@ -1994,7 +2023,7 @@ def main(page: ft.Page):
                     ),
                     custom_category_list,
                     ft.Text(
-                        "⚠️ Só é possível deletar categorias sem tags associadas",
+                        "⚠️ Deletar uma categoria também apaga as tags que ela contém",
                         size=11,
                         italic=True,
                         color=ft.Colors.ORANGE_500,
@@ -2026,8 +2055,8 @@ def main(page: ft.Page):
         manage_dialog.open = True
         page.update()
 
-    def show_settings_dialog(e):
-        """Mostra diálogo de configurações"""
+    def show_settings_dialog(e: ft.ControlEvent) -> None:
+        """Mostra diálogo de configurações."""
 
         # Radio para tema
         theme_radio = ft.RadioGroup(
@@ -2059,21 +2088,14 @@ def main(page: ft.Page):
             value=advanced_mode["value"],
         )
 
-        def reset_custom_order(e):
-            """Reseta a ordem personalizada para alfabética"""
+        def reset_custom_order(e: ft.ControlEvent) -> None:
+            """Reseta a ordem personalizada para alfabética."""
             for game_code, game_data in games.items():
                 # Resetar para ordem alfabética
                 custom_order[game_code] = game_data["chars"].copy()
 
-            # Salvar no custom_data
-            save_custom_data(
-                custom_tags,
-                custom_tags_games,
-                custom_order,
-                custom_categories,
-                custom_category_hashtags,
-                category_order,
-            )
+            # Salvar dados
+            save_data()
 
             # Reconstruir se estiver no modo personalizado
             if sort_mode["value"] == "personalizada":
@@ -2085,7 +2107,8 @@ def main(page: ft.Page):
             snackbar.open = True
             page.update()
 
-        def apply_settings(e):
+        def apply_settings(e: ft.ControlEvent) -> None:
+            """Aplica as configurações selecionadas."""
             # Aplicar tema
             if theme_radio.value == "dark":
                 page.theme_mode = ft.ThemeMode.DARK
@@ -2133,7 +2156,7 @@ def main(page: ft.Page):
                     ft.Text("Ordem Personalizada", size=14, weight=ft.FontWeight.BOLD),
                     ft.Container(
                         content=ft.ElevatedButton(
-                            "🔄 Resetar Ordem Personalizada",
+                            "Resetar Ordem Personalizada",
                             icon=ft.Icons.RESTORE,
                             on_click=reset_custom_order,
                             bgcolor=ft.Colors.RED,
@@ -2338,10 +2361,12 @@ def main(page: ft.Page):
     file_picker = ft.FilePicker()
     page.overlay.append(file_picker)
 
-    def export_custom_data(e):
+    def export_custom_data(e: ft.ControlEvent) -> None:
+        """Exporta os dados personalizados para um arquivo."""
         """Exporta custom_data.json"""
 
-        def save_result(e: ft.FilePickerResultEvent):
+        def save_result(e: ft.FilePickerResultEvent) -> None:
+            """Callback para salvar o arquivo exportado."""
             if e.path:
                 try:
                     dest_path = Path(e.path)
@@ -2370,10 +2395,12 @@ def main(page: ft.Page):
             file_type=ft.FilePickerFileType.CUSTOM,
         )
 
-    def export_config(e):
+    def export_config(e: ft.ControlEvent) -> None:
+        """Exporta as configurações para um arquivo."""
         """Exporta config.json"""
 
-        def save_result(e: ft.FilePickerResultEvent):
+        def save_result(e: ft.FilePickerResultEvent) -> None:
+            """Callback para salvar o arquivo exportado."""
             if e.path:
                 try:
                     dest_path = Path(e.path)
@@ -2402,10 +2429,12 @@ def main(page: ft.Page):
             file_type=ft.FilePickerFileType.CUSTOM,
         )
 
-    def import_custom_data(e):
+    def import_custom_data(e: ft.ControlEvent) -> None:
+        """Importa dados personalizados de um arquivo."""
         """Importa custom_data.json"""
 
-        def load_result(e: ft.FilePickerResultEvent):
+        def load_result(e: ft.FilePickerResultEvent) -> None:
+            """Callback para carregar o arquivo importado."""
             if e.files:
                 src_path = Path(e.files[0].path)
                 try:
@@ -2454,10 +2483,12 @@ def main(page: ft.Page):
             file_type=ft.FilePickerFileType.CUSTOM,
         )
 
-    def import_config(e):
+    def import_config(e: ft.ControlEvent) -> None:
+        """Importa configurações de um arquivo."""
         """Importa config.json"""
 
-        def load_result(e: ft.FilePickerResultEvent):
+        def load_result(e: ft.FilePickerResultEvent) -> None:
+            """Callback para carregar o arquivo importado."""
             if e.files:
                 src_path = Path(e.files[0].path)
                 try:
