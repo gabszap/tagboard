@@ -9,7 +9,7 @@ GAME_HASHTAGS = {
     "HSR": "#HonkaiStarRail #崩壊スターレイル",
     "GI": "#GenshinImpact #原神",
     "HI3": "#HonkaiImpact3rd #崩壊3rd",
-    "ZZZ": "#ZenlessZoneZero #zzzero #ゼンレスゾーンゼロ",
+    "ZZZ": "#zzzero #ゼンゼロ #ZenlessZoneZero",
     "WW": "#WutheringWaves #鳴潮",
     "BA": "#BlueArchive #ブルアカ",
     "GF2": "#GirlsFrontline2 #ドルフロ2",

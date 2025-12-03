@@ -219,10 +219,11 @@ def main(page: ft.Page):
             page.update()
 
     def clear_clipboard(e):
-        """Limpa a área de transferência"""
+        """Limpa a área de transferência e a área de teste"""
         try:
             pyperclip.copy("")
-            snackbar.content.value = "🗑️ Área de transferência limpa!"
+            test_area.value = ""
+            snackbar.content.value = "🗑️ Área de transferência e área de teste limpas!"
             snackbar.content.color = ft.Colors.WHITE
             snackbar.bgcolor = ft.Colors.BLUE_700
             snackbar.open = True
@@ -232,6 +233,27 @@ def main(page: ft.Page):
             snackbar.bgcolor = ft.Colors.RED_700
             snackbar.open = True
             page.update()
+
+    def process_hashtags(raw_input: str) -> str:
+        """Processa entrada de hashtags: adiciona # automaticamente e separa por espaço"""
+        if not raw_input.strip():
+            return ""
+
+        # Separar por vírgula ou espaço
+        parts = raw_input.replace(",", " ").split()
+
+        # Processar cada parte
+        processed = []
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+            # Adicionar # se não tiver
+            if not part.startswith("#"):
+                part = f"#{part}"
+            processed.append(part)
+
+        return " ".join(processed)
 
     def show_context_menu(e, char_name: str):
         """Mostra menu de contexto com opções de editar/deletar"""
@@ -695,6 +717,20 @@ def main(page: ft.Page):
                     ),
                     ft.ListTile(
                         leading=ft.Image(
+                            src="src/assets/hashtag.svg",
+                            width=32,
+                            height=32,
+                            color=ft.Colors.WHITE,
+                        ),
+                        title=ft.Text("Adicionar em Lote", weight=ft.FontWeight.BOLD),
+                        subtitle=ft.Text("Adicionar várias tags de uma vez"),
+                        on_click=lambda _: [
+                            close_dialog(menu_dialog),
+                            show_batch_add_dialog(None),
+                        ],
+                    ),
+                    ft.ListTile(
+                        leading=ft.Image(
                             src="src/assets/folder-plus.svg",
                             width=32,
                             height=32,
@@ -719,6 +755,196 @@ def main(page: ft.Page):
         menu_dialog.open = True
         page.update()
 
+    def show_batch_add_dialog(e):
+        """Mostra diálogo para adicionar tags em lote"""
+
+        batch_field = ft.TextField(
+            label="Tags em Lote",
+            hint_text="Formato: personagem, tags\nEx:\nSaber, Saber セイバー\nAcheron, Acheron 黄泉",
+            multiline=True,
+            min_lines=8,
+            max_lines=12,
+            width=450,
+        )
+
+        # Obter todas as categorias (padrão + customizadas)
+        all_categories = get_all_categories()
+
+        game_dropdown = ft.Dropdown(
+            label="Jogo",
+            width=450,
+            options=[ft.dropdown.Option(code, name) for code, name in all_categories],
+            value="HSR",
+        )
+
+        def save_batch_tags(e):
+            batch_text = batch_field.value.strip()
+            game_code = game_dropdown.value
+
+            if not batch_text:
+                snackbar.content.value = "❌ Insira pelo menos uma tag!"
+                snackbar.bgcolor = ft.Colors.RED_700
+                snackbar.open = True
+                page.update()
+                return
+
+            # Processar cada linha
+            lines = batch_text.strip().split("\n")
+            added_count = 0
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Separar nome do personagem das hashtags (primeira vírgula)
+                if "," in line:
+                    parts = line.split(",", 1)
+                    char_name = parts[0].strip()
+                    hashtags_raw = parts[1].strip() if len(parts) > 1 else ""
+                else:
+                    # Se não tiver vírgula, considerar tudo como nome (sem hashtags específicas)
+                    char_name = line.strip()
+                    hashtags_raw = char_name  # Usar o nome como hashtag
+
+                if not char_name:
+                    continue
+
+                # Normalizar nome
+                char_name = normalize_char_name(char_name)
+
+                # Processar hashtags
+                hashtags = process_hashtags(hashtags_raw)
+
+                # Adicionar hashtags do jogo
+                hashtags_complete = add_game_hashtags(
+                    hashtags, game_code, custom_category_hashtags
+                )
+
+                # Adicionar ao dicionário
+                custom_tags[char_name] = hashtags_complete
+                all_hashtags[char_name] = hashtags_complete
+                custom_tags_games[char_name] = game_code
+                added_count += 1
+
+            if added_count == 0:
+                snackbar.content.value = "❌ Nenhuma tag válida encontrada!"
+                snackbar.bgcolor = ft.Colors.RED_700
+                snackbar.open = True
+                page.update()
+                return
+
+            # Salvar no custom_data
+            save_custom_data(
+                custom_tags,
+                custom_tags_games,
+                custom_order,
+                custom_categories,
+                custom_category_hashtags,
+                category_order,
+            )
+
+            # Reorganizar jogos
+            nonlocal games
+            games = organize_characters(
+                all_hashtags, custom_tags_games, custom_categories
+            )
+
+            # Atualizar custom_order
+            for gc, game_data in games.items():
+                if gc not in custom_order:
+                    custom_order[gc] = []
+                custom_order[gc] = game_data["chars"].copy()
+
+            # Salvar custom_order
+            save_custom_data(
+                custom_tags,
+                custom_tags_games,
+                custom_order,
+                custom_categories,
+                custom_category_hashtags,
+                category_order,
+            )
+
+            # Reconstruir layout
+            rebuild_layout()
+
+            close_dialog(batch_dialog)
+            snackbar.content.value = (
+                f"✅ {added_count} tag(s) adicionada(s) com sucesso!"
+            )
+            snackbar.bgcolor = ft.Colors.GREEN_700
+            snackbar.content.color = ft.Colors.WHITE
+            snackbar.open = True
+            page.update()
+
+        batch_dialog = ft.AlertDialog(
+            title=ft.Row(
+                [
+                    ft.Image(
+                        src="src/assets/plus.svg",
+                        width=24,
+                        height=24,
+                        color=ft.Colors.WHITE,
+                    ),
+                    ft.Text("Adicionar em Lote", weight=ft.FontWeight.BOLD),
+                ],
+                spacing=8,
+                alignment=ft.MainAxisAlignment.START,
+            ),
+            content=ft.Column(
+                [
+                    ft.Container(
+                        content=ft.Column(
+                            [
+                                ft.Text(
+                                    "Formato: personagem, tags",
+                                    size=12,
+                                    weight=ft.FontWeight.BOLD,
+                                ),
+                                ft.Text(
+                                    "Exemplo:",
+                                    size=11,
+                                    color=ft.Colors.GREY_400,
+                                ),
+                                ft.Text(
+                                    "Saber, Saber セイバー\nSeele, Seele ゼーレ\nAcheron, Acheron 黄泉",
+                                    size=11,
+                                    color=ft.Colors.GREY_500,
+                                    italic=True,
+                                ),
+                            ],
+                            spacing=2,
+                        ),
+                        bgcolor=ft.Colors.BLUE_GREY_800,
+                        padding=10,
+                        border_radius=8,
+                    ),
+                    batch_field,
+                    game_dropdown,
+                ],
+                tight=True,
+                spacing=15,
+                scroll=ft.ScrollMode.AUTO,
+                width=450,
+            ),
+            actions=[
+                ft.TextButton(
+                    "Cancelar", on_click=lambda e: close_dialog(batch_dialog)
+                ),
+                ft.ElevatedButton(
+                    "Adicionar",
+                    icon=ft.Icons.ADD,
+                    on_click=save_batch_tags,
+                    bgcolor=ft.Colors.BLUE_700,
+                    color=ft.Colors.WHITE,
+                ),
+            ],
+        )
+        page.overlay.append(batch_dialog)
+        batch_dialog.open = True
+        page.update()
+
     def show_add_tag_dialog(e):
         """Mostra diálogo para adicionar nova tag"""
 
@@ -731,7 +957,7 @@ def main(page: ft.Page):
 
         hashtags_field = ft.TextField(
             label="Hashtags",
-            hint_text="Ex: #HonkaiStarRail #Acheron #黄泉",
+            hint_text="Ex: Acheron, 黄泉 (vírgula ou espaço, # automático)",
             multiline=True,
             min_lines=2,
             max_lines=4,
@@ -762,6 +988,9 @@ def main(page: ft.Page):
 
             # Normalizar o nome do personagem (primeira letra maiúscula)
             char_name = normalize_char_name(char_name)
+
+            # Processar hashtags (adicionar # automaticamente)
+            hashtags = process_hashtags(hashtags)
 
             # Adicionar as hashtags do jogo automaticamente
             hashtags_complete = add_game_hashtags(
@@ -1844,13 +2073,18 @@ def main(page: ft.Page):
 
     # AppBar
     page.appbar = ft.AppBar(
-        leading=ft.Image(
-            src="src/assets/icon.png",
-            width=32,
-            height=32,
+        title=ft.Row(
+            [
+                ft.Image(
+                    src="src/assets/icon-256.ico",
+                    width=32,
+                    height=32,
+                ),
+                ft.Text("Hashtags por Jogo", size=20, weight=ft.FontWeight.BOLD),
+            ],
+            spacing=10,
+            alignment=ft.MainAxisAlignment.START,
         ),
-        leading_width=40,
-        title=ft.Text("Hashtags por Jogo", size=20, weight=ft.FontWeight.BOLD),
         center_title=False,
         bgcolor=ft.Colors.BLUE_GREY_900,
         actions=[
