@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import sys
+import tomllib
 from pathlib import Path
 
 import flet as ft
@@ -12,11 +13,24 @@ from .utils import (
     DEFAULT_GAMES,
     GAME_HASHTAGS,
     add_game_hashtags,
+    generate_category_code,
     normalize_char_name,
     organize_characters,
+    validate_category_code,
 )
 
-APP_VERSION = "1.0.7"
+
+def load_app_version() -> str:
+    pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    try:
+        with pyproject_path.open("rb") as fp:
+            data = tomllib.load(fp)
+        return data.get("project", {}).get("version", "0.0.0")
+    except Exception:
+        return "0.0.0"
+
+
+APP_VERSION = load_app_version()
 
 
 def resource_path(relative_path):
@@ -423,6 +437,10 @@ def main(page: ft.Page):
                 # Filtrar personagens que começam com o texto
                 filtered = [c for c in char_list if c.lower().startswith(search_text)]
 
+            # Atualizar badge de contador com quantidade filtrada (se existir)
+            if "count_badge" in section:
+                section["count_badge"].value = str(len(filtered))
+
             # Mostrar/ocultar seção
             if filtered:
                 section["column"].visible = True
@@ -632,17 +650,20 @@ def main(page: ft.Page):
                     expand=True,
                 )
 
+                # Badge de contador (guardamos referência para atualizar na pesquisa)
+                count_badge_text = ft.Text(
+                    str(len(game_data["chars"])),
+                    size=11,
+                    color=ft.Colors.WHITE,
+                    weight=ft.FontWeight.BOLD,
+                )
+
                 # Tab com nome do jogo e badge de contador
                 tab_label = ft.Row(
                     [
                         ft.Text(game_data["name"], size=14),
                         ft.Container(
-                            content=ft.Text(
-                                str(len(game_data["chars"])),
-                                size=11,
-                                color=ft.Colors.WHITE,
-                                weight=ft.FontWeight.BOLD,
-                            ),
+                            content=count_badge_text,
                             bgcolor=ft.Colors.BLUE_700,
                             padding=ft.padding.symmetric(horizontal=6, vertical=2),
                             border_radius=10,
@@ -660,6 +681,7 @@ def main(page: ft.Page):
                 game_sections[game_code] = {
                     "column": game_tab,
                     "container": char_container,
+                    "count_badge": count_badge_text,
                 }
 
                 game_elements.append(game_tab)
@@ -881,6 +903,7 @@ def main(page: ft.Page):
             width=450,
             options=[ft.dropdown.Option(code, name) for code, name in all_categories],
             value="HSR",
+            menu_height=300,
         )
 
         def save_batch_tags(e):
@@ -1078,6 +1101,7 @@ def main(page: ft.Page):
             width=400,
             options=[ft.dropdown.Option(code, name) for code, name in all_categories],
             value="HSR",
+            menu_height=300,
         )
 
         def save_new_tag(e):
@@ -1241,6 +1265,7 @@ def main(page: ft.Page):
             width=400,
             options=[ft.dropdown.Option(code, name) for code, name in all_categories],
             value=current_game,
+            menu_height=300,
         )
 
         def save_edited_tag(e):
@@ -1477,15 +1502,7 @@ def main(page: ft.Page):
 
     def get_all_categories():
         """Retorna lista de todas as categorias (padrão + customizadas)"""
-        default_categories = [
-            ("HSR", "Honkai: Star Rail"),
-            ("GI", "Genshin Impact"),
-            ("HI3", "Honkai Impact 3rd"),
-            ("ZZZ", "Zenless Zone Zero"),
-            ("WW", "Wuthering Waves"),
-            ("BA", "Blue Archive"),
-            ("GF2", "Girls' Frontline 2"),
-        ]
+        default_categories = list(DEFAULT_GAMES.items())
 
         # Adicionar categorias customizadas
         all_categories = default_categories.copy()
@@ -1499,8 +1516,8 @@ def main(page: ft.Page):
 
         # Campos do formulário
         category_code_field = ft.TextField(
-            label="Código da Categoria",
-            hint_text="Ex: NIKKE (use letras maiúsculas)",
+            label="Código (opcional)",
+            hint_text="Ex: NIKKE (gerado automaticamente se vazio)",
             width=400,
             max_length=10,
         )
@@ -1521,27 +1538,31 @@ def main(page: ft.Page):
         )
 
         def save_new_category(e):
-            code = category_code_field.value.strip().upper()
+            raw_code = category_code_field.value.strip().upper()
             name = category_name_field.value.strip()
             hashtags = category_hashtags_field.value.strip()
 
-            if not code or not name or not hashtags:
-                snackbar.content.value = "❌ Preencha todos os campos!"
+            if not name or not hashtags:
+                snackbar.content.value = "❌ Informe o nome e as hashtags!"
                 snackbar.bgcolor = ft.Colors.RED_700
                 snackbar.open = True
                 page.update()
                 return
 
-            # Verificar se já existe
             all_cats = get_all_categories()
             existing_codes = [c[0] for c in all_cats]
 
-            if code in existing_codes:
-                snackbar.content.value = f"❌ Categoria '{code}' já existe!"
-                snackbar.bgcolor = ft.Colors.RED_700
-                snackbar.open = True
-                page.update()
-                return
+            if raw_code:
+                is_valid, error_msg = validate_category_code(raw_code, existing_codes)
+                if not is_valid:
+                    snackbar.content.value = f"❌ {error_msg}"
+                    snackbar.bgcolor = ft.Colors.RED_700
+                    snackbar.open = True
+                    page.update()
+                    return
+                code = raw_code
+            else:
+                code = generate_category_code(name, existing_codes)
 
             # Adicionar categoria customizada
             custom_categories[code] = name
@@ -1613,8 +1634,8 @@ def main(page: ft.Page):
             ),
             content=ft.Column(
                 [
-                    category_code_field,
                     category_name_field,
+                    category_code_field,
                     category_hashtags_field,
                     ft.Text(
                         "💡 Dica: Use códigos curtos e únicos (ex: NIKKE, AL, AK)",
@@ -1649,6 +1670,23 @@ def main(page: ft.Page):
     def show_manage_categories_dialog(e):
         """Mostra diálogo para gerenciar categorias customizadas"""
         nonlocal category_order
+
+        def build_type_badge(cat_type: str) -> ft.Container:
+            label = "Custom" if cat_type == "custom" else "Padrão"
+            bgcolor = (
+                ft.Colors.PURPLE_700 if cat_type == "custom" else ft.Colors.BLUE_700
+            )
+            return ft.Container(
+                content=ft.Text(
+                    label,
+                    size=11,
+                    weight=ft.FontWeight.BOLD,
+                    color=ft.Colors.WHITE,
+                ),
+                bgcolor=bgcolor,
+                padding=ft.padding.symmetric(horizontal=8, vertical=2),
+                border_radius=10,
+            )
 
         def delete_category(code, name):
             """Deleta uma categoria customizada"""
@@ -1732,6 +1770,7 @@ def main(page: ft.Page):
                         content=ft.Row(
                             [
                                 ft.Text(f"{code} - {name}", expand=True),
+                                build_type_badge("custom"),
                                 ft.IconButton(
                                     icon=ft.Icons.DELETE,
                                     icon_color=ft.Colors.RED_400,
@@ -1776,8 +1815,9 @@ def main(page: ft.Page):
 
         def create_drag_item(code, name, cat_type, index):
             """Cria um item arrastável"""
-            # Nome com prefixo [Custom] se for categoria customizada
-            display_name = f"[Custom] {name}" if cat_type == "custom" else name
+            display_name = name
+            type_label = "Custom" if cat_type == "custom" else "Padrão"
+            badge = build_type_badge(cat_type)
 
             item_content = ft.Container(
                 content=ft.Row(
@@ -1790,6 +1830,7 @@ def main(page: ft.Page):
                             if cat_type == "custom"
                             else ft.Colors.WHITE,
                         ),
+                        badge,
                         ft.Image(
                             src="src/assets/drag_handle.svg",
                             width=20,
@@ -1826,7 +1867,11 @@ def main(page: ft.Page):
                 content=item_content,
                 data=code,
                 content_feedback=ft.Container(
-                    content=ft.Text(display_name, size=14, color=ft.Colors.WHITE),
+                    content=ft.Text(
+                        f"{display_name} · {type_label}",
+                        size=14,
+                        color=ft.Colors.WHITE,
+                    ),
                     bgcolor=ft.Colors.BLUE_700,
                     padding=ft.padding.symmetric(horizontal=14, vertical=12),
                     border_radius=8,

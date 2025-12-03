@@ -6,7 +6,7 @@ Hashtags organizadas por jogo
 HASHTAGS = {
     # Honkai: Star Rail (HSR)
     "Acheron": "#HonkaiStarRail #崩壊スターレイル #Acheron #黄泉",
-    "BlackSwan": "#HonkaiStarRail #崩壊スターレイル #BlackSwan #ブラックスワン #黑天鹅",
+    "Black Swan": "#HonkaiStarRail #崩壊スターレイル #BlackSwan #ブラックスワン #黑天鹅",
     "BronyaHSR": "#HonkaiStarRail #崩壊スターレイル #Bronya #BronyaRand #ブローニャ・ランド",
     "Castorice": "#HonkaiStarRail #崩壊スターレイル #Castorice #キャストリス",
     "Evernight": "#HonkaiStarRail #崩壊スターレイル #Evernight #エバーナイト",
@@ -21,9 +21,9 @@ HASHTAGS = {
     "Jingliu": "#HonkaiStarRail #崩壊スターレイル #鏡流 #Jingliu",
     "Kafka": "#HonkaiStarRail #崩壊スターレイル #Kafka #カフカ",
     "Lingsha": "#HonkaiStarRail #崩壊スターレイル #Lingsha #灵砂",
-    "March7th": "#HonkaiStarRail #崩壊スターレイル #March7th #三月なのか",
+    "March 7th": "#HonkaiStarRail #崩壊スターレイル #March7th #三月なのか",
     "Robin": "#HonkaiStarRail #崩壊スターレイル #Robin #ロビン",
-    "RuanMei": "#HonkaiStarRail #崩壊スターレイル #RuanMei #阮梅",
+    "Ruan Mei": "#HonkaiStarRail #崩壊スターレイル #RuanMei #阮梅",
     "Seele": "#HonkaiStarRail #崩壊スターレイル #Seele #ゼーレ",
     "Silver Wolf": "#HonkaiStarRail #崩壊スターレイル #SilverWolf #銀狼",
     "Sparkle": "#HonkaiStarRail #崩壊スターレイル #Sparkle #花火",

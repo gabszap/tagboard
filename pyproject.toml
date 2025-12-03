@@ -1,6 +1,6 @@
 [project]
 name = "tag-app"
-version = "1.0.7"
+version = "1.0.8"
 description = "tags for game characters"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -150,3 +150,63 @@ def organize_characters(
         game["chars"].sort(key=lambda x: x.lower())
 
     return games
+
+
+def validate_category_code(code: str, existing_codes: list[str]) -> tuple[bool, str]:
+    """
+    Valida um código de categoria.
+
+    Args:
+        code: Código a validar.
+        existing_codes: Lista de códigos já existentes.
+
+    Returns:
+        Tupla (válido, mensagem de erro se inválido).
+    """
+    if not code or not code.strip():
+        return False, "Código da categoria é obrigatório"
+
+    code = code.strip().upper()
+
+    if len(code) < 2:
+        return False, "Código deve ter pelo menos 2 caracteres"
+
+    if len(code) > 10:
+        return False, "Código deve ter no máximo 10 caracteres"
+
+    if not code.isalnum():
+        return False, "Código deve conter apenas letras e números"
+
+    if code in existing_codes:
+        return False, f"Código '{code}' já existe"
+
+    return True, ""
+
+
+def generate_category_code(name: str, existing_codes: list[str]) -> str:
+    """
+    Gera um código de categoria baseado no nome.
+
+    Args:
+        name: Nome da categoria.
+        existing_codes: Lista de códigos já existentes.
+
+    Returns:
+        Código gerado único.
+    """
+    words = name.strip().split()
+    if len(words) >= 2:
+        base_code = "".join(w[0].upper() for w in words[:4])
+    else:
+        base_code = name.strip()[:4].upper()
+
+    if not base_code:
+        base_code = "CAT"
+
+    code = base_code
+    counter = 1
+    while code in existing_codes:
+        code = f"{base_code}{counter}"
+        counter += 1
+
+    return code
