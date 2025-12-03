@@ -10,6 +10,7 @@ import pyperclip
 from .data import HASHTAGS
 from .utils import (
     DEFAULT_GAMES,
+    GAME_HASHTAGS,
     add_game_hashtags,
     normalize_char_name,
     organize_characters,
@@ -38,19 +39,101 @@ CONFIG_FILE = Path("C:/tag-app/config.json")
 Path("C:/tag-app").mkdir(parents=True, exist_ok=True)
 
 
+def migrate_old_format_to_new(old_data: dict) -> dict:
+    """Migra o formato antigo para o novo formato agrupado por jogo."""
+    # Se já está no novo formato, retornar como está
+    if "games" in old_data:
+        return old_data
+
+    # Extrair dados do formato antigo
+    custom_tags = old_data.get("custom_tags", {})
+    custom_tags_games = old_data.get("custom_tags_games", {})
+    custom_order = old_data.get("custom_order", {})
+    custom_categories = old_data.get("custom_categories", {})
+    custom_category_hashtags = old_data.get("custom_category_hashtags", {})
+    category_order = old_data.get("category_order", list(DEFAULT_GAMES.keys()))
+
+    # Criar novo formato
+    games_data = {}
+
+    # Adicionar jogos padrão
+    for code, name in DEFAULT_GAMES.items():
+        games_data[code] = {
+            "custom_category": False,
+            "category": name,
+            "category_hashtags": GAME_HASHTAGS.get(code, ""),
+            "characters": {},
+            "order": custom_order.get(code, []),
+        }
+
+    # Adicionar categorias customizadas
+    for code, name in custom_categories.items():
+        games_data[code] = {
+            "custom_category": True,
+            "category": name,
+            "category_hashtags": custom_category_hashtags.get(code, ""),
+            "characters": {},
+            "order": custom_order.get(code, []),
+        }
+
+    # Adicionar personagens customizados aos seus jogos
+    for char_name, hashtags in custom_tags.items():
+        game_code = custom_tags_games.get(char_name, "GI")
+        if game_code in games_data:
+            games_data[game_code]["characters"][char_name] = hashtags
+
+    return {"games": games_data, "category_order": category_order}
+
+
 def load_custom_data():
-    """Carrega dados personalizados do arquivo JSON."""
+    """Carrega dados personalizados do arquivo JSON (novo formato agrupado por jogo)."""
     if CUSTOM_DATA_FILE.exists():
         try:
             with open(CUSTOM_DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
+
+                # Migrar formato antigo se necessário
+                if "games" not in data:
+                    data = migrate_old_format_to_new(data)
+                    # Salvar no novo formato
+                    with open(CUSTOM_DATA_FILE, "w", encoding="utf-8") as fw:
+                        json.dump(data, fw, ensure_ascii=False, indent=2)
+
+                games_data = data.get("games", {})
+                category_order = data.get("category_order", list(DEFAULT_GAMES.keys()))
+
+                # Extrair dados para compatibilidade com código existente
+                custom_tags = {}
+                custom_tags_games = {}
+                custom_order = {}
+                custom_categories = {}
+                custom_category_hashtags = {}
+
+                for game_code, game_info in games_data.items():
+                    # Extrair personagens customizados
+                    for char_name, hashtags in game_info.get("characters", {}).items():
+                        custom_tags[char_name] = hashtags
+                        custom_tags_games[char_name] = game_code
+
+                    # Extrair ordem
+                    custom_order[game_code] = game_info.get("order", [])
+
+                    # Extrair categorias customizadas
+                    if game_info.get("custom_category", False):
+                        custom_categories[game_code] = game_info.get(
+                            "category", game_code
+                        )
+                        custom_category_hashtags[game_code] = game_info.get(
+                            "category_hashtags", ""
+                        )
+
                 return (
-                    data.get("custom_tags", {}),
-                    data.get("custom_tags_games", {}),
-                    data.get("custom_order", {}),
-                    data.get("custom_categories", {}),
-                    data.get("custom_category_hashtags", {}),
-                    data.get("category_order", list(DEFAULT_GAMES.keys())),
+                    custom_tags,
+                    custom_tags_games,
+                    custom_order,
+                    custom_categories,
+                    custom_category_hashtags,
+                    category_order,
                 )
         except Exception as e:
             print(f"Erro ao carregar dados personalizados: {e}")
@@ -65,16 +148,39 @@ def save_custom_data(
     custom_category_hashtags,
     category_order,
 ):
-    """Salva dados personalizados no arquivo JSON."""
+    """Salva dados personalizados no arquivo JSON (novo formato agrupado por jogo)."""
     try:
-        data = {
-            "custom_tags": custom_tags,
-            "custom_tags_games": custom_tags_games,
-            "custom_order": custom_order,
-            "custom_categories": custom_categories,
-            "custom_category_hashtags": custom_category_hashtags,
-            "category_order": category_order,
-        }
+        # Criar estrutura de games
+        games_data = {}
+
+        # Adicionar jogos padrão
+        for code, name in DEFAULT_GAMES.items():
+            games_data[code] = {
+                "custom_category": False,
+                "category": name,
+                "category_hashtags": GAME_HASHTAGS.get(code, ""),
+                "characters": {},
+                "order": custom_order.get(code, []),
+            }
+
+        # Adicionar categorias customizadas
+        for code, name in custom_categories.items():
+            games_data[code] = {
+                "custom_category": True,
+                "category": name,
+                "category_hashtags": custom_category_hashtags.get(code, ""),
+                "characters": {},
+                "order": custom_order.get(code, []),
+            }
+
+        # Adicionar personagens customizados aos seus jogos
+        for char_name, hashtags in custom_tags.items():
+            game_code = custom_tags_games.get(char_name, "GI")
+            if game_code in games_data:
+                games_data[game_code]["characters"][char_name] = hashtags
+
+        data = {"games": games_data, "category_order": category_order}
+
         with open(CUSTOM_DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     except Exception as e:
