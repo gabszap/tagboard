@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import Any
 import flet as ft
 import pyperclip
-
+import requests
+import threading
+import queue
 from .data import HASHTAGS
 from .utils import (
     DEFAULT_GAMES,
@@ -61,6 +63,129 @@ CONFIG_FILE = Path("C:/tag-app/config.json")
 
 # Garantir que o diretório existe
 Path("C:/tag-app").mkdir(parents=True, exist_ok=True)
+
+# Arquivo JSON com dados dos personagens (ícones externos)
+CHARS_JSON_FILE = Path(__file__).resolve().parents[1] / "Hoyo pfps" / "chars.json"
+
+# Cache dos dados de personagens
+_chars_data_cache: dict[str, list[dict[str, str]]] | None = None
+
+
+def load_chars_data() -> dict[str, list[dict[str, str]]]:
+    """Carrega dados dos personagens do arquivo chars.json."""
+    global _chars_data_cache
+    if _chars_data_cache is not None:
+        return _chars_data_cache
+    
+    if CHARS_JSON_FILE.exists():
+        try:
+            with open(CHARS_JSON_FILE, "r", encoding="utf-8") as f:
+                _chars_data_cache = json.load(f)
+                return _chars_data_cache
+        except Exception as e:
+            print(f"Erro ao carregar chars.json: {e}")
+    return {}
+
+
+# Diretório de cache de ícones
+CACHE_DIR = Path("C:/tag-app/cache")
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def get_cached_icon_path(char_name: str, game_code: str) -> Path:
+    """Retorna o caminho do ícone em cache."""
+    # Normalizar nome para nome de arquivo seguro
+    safe_name = char_name.replace(" ", "_").replace("/", "_").replace(":", "_")
+    return CACHE_DIR / f"{game_code}_{safe_name}.png"
+
+
+def download_icon_to_cache(url: str, cache_path: Path) -> bool:
+    """Baixa um ícone da URL e salva no cache."""
+    try:       
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        response = requests.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        with open(cache_path, "wb") as f:
+            f.write(response.content)
+        return True
+    except Exception as e:
+        print(f"Erro ao baixar ícone {url}: {e}")
+        return False
+
+
+# Sistema de cache em background
+_download_queue: queue.Queue = queue.Queue()
+_download_thread: threading.Thread | None = None
+_pending_downloads: set = set()  # Evitar downloads duplicados
+
+
+def _background_downloader():
+    """Thread que processa downloads em background."""
+    while True:
+        try:
+            item = _download_queue.get(timeout=1)
+            if item is None:  # Sinal para parar
+                break
+            
+            url, cache_path, char_key = item
+            if not cache_path.exists():  # Verificar novamente antes de baixar
+                download_icon_to_cache(url, cache_path)
+            
+            _pending_downloads.discard(char_key)
+            _download_queue.task_done()
+        except queue.Empty:
+            continue
+        except Exception as e:
+            print(f"Erro no background downloader: {e}")
+
+
+def _ensure_background_thread():
+    """Garante que a thread de download está rodando."""
+    global _download_thread
+    if _download_thread is None or not _download_thread.is_alive():
+        _download_thread = threading.Thread(target=_background_downloader, daemon=True)
+        _download_thread.start()
+
+
+def queue_icon_download(url: str, cache_path: Path, char_key: str):
+    """Enfileira um ícone para download em background."""
+    if char_key not in _pending_downloads:
+        _pending_downloads.add(char_key)
+        _ensure_background_thread()
+        _download_queue.put((url, cache_path, char_key))
+
+
+def get_char_icon_url(char_name: str, game_code: str) -> str | None:
+    """Busca o ícone de um personagem, usando cache local se disponível."""
+    chars_data = load_chars_data()
+    game_chars = chars_data.get(game_code, [])
+    
+    icon_url = None
+    for char in game_chars:
+        # Comparar nome (case insensitive)
+        if char.get("nome", "").lower() == char_name.lower():
+            icon_url = char.get("icon")
+            break
+    
+    if not icon_url:
+        return None
+    
+    # Verificar se existe em cache
+    cache_path = get_cached_icon_path(char_name, game_code)
+    
+    if cache_path.exists():
+        # Usar versão em cache (muito rápido!)
+        return str(cache_path)
+    
+    # Enfileirar download em background
+    char_key = f"{game_code}_{char_name}"
+    queue_icon_download(icon_url, cache_path, char_key)
+    
+    # Retornar URL direta enquanto não tem cache
+    return icon_url
 
 
 def migrate_old_format_to_new(old_data: dict[str, Any]) -> dict[str, Any]:
@@ -313,8 +438,8 @@ def main(page: ft.Page) -> None:
         "value": config["sort_mode"]
     }  # Usar dict para manter referência mutável
 
-    # Estado do layout (7colunas, grid2x4, grid3x3, tabs)
-    layout_mode = {"value": config["layout_mode"]}  # Padrão: 7 colunas
+    # Estado do layout (colunas, grid2x4, tabs, icons)
+    layout_mode = {"value": config["layout_mode"]}  # Padrão: colunas
 
     # Mapeamento de ícones dos jogos
     game_icons = {}
@@ -507,6 +632,107 @@ def main(page: ft.Page) -> None:
                     # Verificar se é tag customizada ou modo avançado
                     is_custom = char in custom_tags
                     can_edit = is_custom or advanced_mode["value"]
+                    
+                    # Modo Ícones: criar widget com avatar
+                    if layout_mode["value"] == "icons":
+                        icon_url = get_char_icon_url(char, game_code)
+                        
+                        if icon_url:
+                            # Widget com ícone
+                            if can_edit:
+                                char_widget = ft.GestureDetector(
+                                    content=ft.Container(
+                                        content=ft.Column(
+                                            [
+                                                ft.Container(
+                                                    content=ft.Image(
+                                                        src=icon_url,
+                                                        width=70,
+                                                        height=70,
+                                                        fit=ft.ImageFit.COVER,
+                                                        border_radius=ft.border_radius.all(35),
+                                                    ),
+                                                    width=74,
+                                                    height=74,
+                                                    border_radius=ft.border_radius.all(37),
+                                                    border=ft.border.all(2, ft.Colors.AMBER_400),
+                                                    clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                                                ),
+                                                ft.Container(
+                                                    content=ft.Text(
+                                                        char,
+                                                        size=11,
+                                                        weight=ft.FontWeight.BOLD,
+                                                        text_align=ft.TextAlign.CENTER,
+                                                        max_lines=1,
+                                                        overflow=ft.TextOverflow.ELLIPSIS,
+                                                    ),
+                                                    padding=ft.padding.symmetric(horizontal=6, vertical=2),
+                                                    border_radius=5,
+                                                    border=ft.border.all(1, ft.Colors.WHITE70),
+                                                    bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
+                                                ),
+                                            ],
+                                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                                            spacing=5,
+                                        ),
+                                        padding=5,
+                                        on_click=lambda e, c=char: copy_hashtags(c),
+                                        ink=True,
+                                        border_radius=10,
+                                    ),
+                                    on_secondary_tap=lambda e, c=char: show_context_menu(e, c),
+                                )
+                            else:
+                                char_widget = ft.Container(
+                                    content=ft.Column(
+                                        [
+                                            ft.Container(
+                                                content=ft.Image(
+                                                    src=icon_url,
+                                                    width=70,
+                                                    height=70,
+                                                    fit=ft.ImageFit.COVER,
+                                                    border_radius=ft.border_radius.all(35),
+                                                ),
+                                                width=74,
+                                                height=74,
+                                                border_radius=ft.border_radius.all(37),
+                                                border=ft.border.all(2, ft.Colors.AMBER_400),
+                                                clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                                            ),
+                                            ft.Container(
+                                                content=ft.Text(
+                                                    char,
+                                                    size=11,
+                                                    weight=ft.FontWeight.BOLD,
+                                                    text_align=ft.TextAlign.CENTER,
+                                                    max_lines=1,
+                                                    overflow=ft.TextOverflow.ELLIPSIS,
+                                                ),
+                                                padding=ft.padding.symmetric(horizontal=6, vertical=2),
+                                                border_radius=5,
+                                                border=ft.border.all(1, ft.Colors.WHITE70),
+                                                bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
+                                            ),
+                                        ],
+                                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                                        spacing=5,
+                                    ),
+                                    padding=5,
+                                    on_click=lambda e, c=char: copy_hashtags(c),
+                                    ink=True,
+                                    border_radius=10,
+                                )
+                            section["container"].controls.append(char_widget)
+                        else:
+                            # Sem ícone: botão menor
+                            btn = ft.ElevatedButton(
+                                text=char, width=100,
+                                on_click=lambda e, c=char: copy_hashtags(c)
+                            )
+                            section["container"].controls.append(btn)
+                        continue
 
                     if sort_mode["value"] == "personalizada":
                         # Modo drag-and-drop
@@ -670,9 +896,9 @@ def main(page: ft.Page) -> None:
             if not game_data["chars"]:
                 continue
 
-            # Container diferente para tabs (horizontal) vs outros modos (vertical)
-            if layout_mode["value"] == "tabs":
-                # Modo Tabs: layout horizontal com wrap
+            # Container diferente para cada modo de layout
+            if layout_mode["value"] == "tabs" or layout_mode["value"] == "icons":
+                # Modo Tabs/Ícones: layout horizontal com wrap
                 char_container = ft.Row(
                     spacing=10,
                     wrap=True,
@@ -685,15 +911,73 @@ def main(page: ft.Page) -> None:
                     scroll=ft.ScrollMode.AUTO,
                 )
 
-            # Adicionar botões dos personagens
+            # Adicionar botões/ícones dos personagens
             for char in game_data["chars"]:
-                btn = ft.ElevatedButton(
-                    text=char, width=200, on_click=lambda e, c=char: copy_hashtags(c)
-                )
-                char_container.controls.append(btn)
+                if layout_mode["value"] == "icons":
+                    # Modo Ícones: verificar se tem ícone de perfil
+                    icon_url = get_char_icon_url(char, game_code)
+                    
+                    if icon_url:
+                        # Criar componente com ícone de perfil
+                        char_widget = ft.Container(
+                            content=ft.Column(
+                                [
+                                    # Avatar com imagem
+                                    ft.Container(
+                                        content=ft.Image(
+                                            src=icon_url,
+                                            width=70,
+                                            height=70,
+                                            fit=ft.ImageFit.COVER,
+                                            border_radius=ft.border_radius.all(35),
+                                        ),
+                                        width=74,
+                                        height=74,
+                                        border_radius=ft.border_radius.all(37),
+                                        border=ft.border.all(2, ft.Colors.AMBER_400),
+                                        clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                                    ),
+                                    # Nome do personagem
+                                    ft.Container(
+                                        content=ft.Text(
+                                            char,
+                                            size=11,
+                                            weight=ft.FontWeight.BOLD,
+                                            text_align=ft.TextAlign.CENTER,
+                                            max_lines=1,
+                                            overflow=ft.TextOverflow.ELLIPSIS,
+                                        ),
+                                        padding=ft.padding.symmetric(horizontal=6, vertical=2),
+                                        border_radius=5,
+                                        border=ft.border.all(1, ft.Colors.WHITE70),
+                                        bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
+                                    ),
+                                ],
+                                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                                spacing=5,
+                            ),
+                            padding=5,
+                            on_click=lambda e, c=char: copy_hashtags(c),
+                            ink=True,
+                            border_radius=10,
+                        )
+                        char_container.controls.append(char_widget)
+                    else:
+                        # Sem ícone: usar botão menor
+                        btn = ft.ElevatedButton(
+                            text=char, width=100, 
+                            on_click=lambda e, c=char: copy_hashtags(c)
+                        )
+                        char_container.controls.append(btn)
+                else:
+                    # Outros modos: botão normal
+                    btn = ft.ElevatedButton(
+                        text=char, width=200, on_click=lambda e, c=char: copy_hashtags(c)
+                    )
+                    char_container.controls.append(btn)
 
-            if layout_mode["value"] == "tabs":
-                # Modo Tabs com ícone de imagem
+            if layout_mode["value"] == "tabs" or layout_mode["value"] == "icons":
+                # Modo Tabs/Ícones com ícone de imagem
                 tab_content = ft.Container(
                     content=char_container,
                     padding=20,
@@ -790,7 +1074,7 @@ def main(page: ft.Page) -> None:
                 game_elements.append(game_card)
 
         # Retornar layout baseado no modo
-        if layout_mode["value"] == "tabs":
+        if layout_mode["value"] == "tabs" or layout_mode["value"] == "icons":
             return ft.Tabs(
                 tabs=game_elements,
                 expand=True,
@@ -807,13 +1091,6 @@ def main(page: ft.Page) -> None:
             first_row = ft.Row(controls=game_elements[:4], spacing=15, expand=True)
             second_row = ft.Row(controls=game_elements[4:], spacing=15, expand=True)
             return ft.Column(controls=[first_row, second_row], spacing=15, expand=True)
-        elif layout_mode["value"] == "grid3x3":
-            first_row = ft.Row(controls=game_elements[:3], spacing=15, expand=True)
-            second_row = ft.Row(controls=game_elements[3:6], spacing=15, expand=True)
-            third_row = ft.Row(controls=game_elements[6:], spacing=15, expand=True)
-            return ft.Column(
-                controls=[first_row, second_row, third_row], spacing=15, expand=True
-            )
 
     def rebuild_layout() -> None:
         """Reconstrói o layout completo."""
@@ -2075,8 +2352,8 @@ def main(page: ft.Page) -> None:
                 [
                     ft.Radio(value="Colunas", label="📊 Colunas (Padrão)"),
                     ft.Radio(value="grid2x4", label="📐 Grid 2x4"),
-                    ft.Radio(value="grid3x3", label="📐 Grid 3x3"),
                     ft.Radio(value="tabs", label="📑 Abas (Tabs)"),
+                    ft.Radio(value="icons", label="🖼️ Ícones"),
                 ]
             ),
             value=layout_mode["value"],
