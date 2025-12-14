@@ -12,6 +12,8 @@ import pyperclip
 import requests
 import threading
 import queue
+import zipfile
+import datetime
 from .data import HASHTAGS
 from .utils import (
     DEFAULT_GAMES,
@@ -60,6 +62,9 @@ CUSTOM_DATA_FILE = Path("C:/tag-app/custom_data.json")
 
 # Arquivo para salvar configurações da interface
 CONFIG_FILE = Path("C:/tag-app/config.json")
+
+# Arquivo para estatísticas de uso
+USAGE_STATS_FILE = Path("C:/tag-app/usage_stats.json")
 
 # Garantir que o diretório existe
 Path("C:/tag-app").mkdir(parents=True, exist_ok=True)
@@ -379,6 +384,9 @@ def load_config() -> ConfigDict:
         "layout_mode": "Colunas",
         "sort_mode": "alfabetica",
         "advanced_mode": False,
+        "advanced_mode": False,
+        "acrylic_mode": False,
+        "acrylic_opacity": 0.7,
     }
 
 
@@ -391,6 +399,26 @@ def save_config(config: ConfigDict) -> None:
         print(f"Erro ao salvar configurações: {e}")
 
 
+def load_usage_stats() -> dict[str, Any]:
+    """Carrega estatísticas de uso."""
+    if USAGE_STATS_FILE.exists():
+        try:
+            with open(USAGE_STATS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Erro ao carregar estatísticas: {e}")
+    return {"total_clicks": 0, "by_game": {}, "by_char": {}}
+
+
+def save_usage_stats(stats: dict[str, Any]) -> None:
+    """Salva estatísticas de uso."""
+    try:
+        with open(USAGE_STATS_FILE, "w", encoding="utf-8") as f:
+            json.dump(stats, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Erro ao salvar estatísticas: {e}")
+
+
 def main(page: ft.Page) -> None:
     page.title = "Hashtags por Jogo"
     page.padding = 0  # Removido padding para a AppBar ficar edge-to-edge
@@ -400,6 +428,193 @@ def main(page: ft.Page) -> None:
 
     # Definir ícone da janela (Windows requer .ico)
     page.window.icon = resource_path("src/assets/icon-256.ico")
+
+    # Configuração de Transparência (Windows requer window transparent e bgcolor com opacidade)
+    page.window.bgcolor = ft.Colors.TRANSPARENT
+    page.bgcolor = ft.Colors.with_opacity(1.0, "#111111") # Opacidade padrão
+
+    def apply_transparency():
+        """Aplica a transparência baseada na config."""
+        is_acrylic = config.get("acrylic_mode", False)
+        opacity = config.get("acrylic_opacity", 0.7)
+        
+        if is_acrylic:
+            # Modo Acrílico
+            page.bgcolor = ft.Colors.with_opacity(opacity, ft.Colors.BLACK)
+            if page.appbar:
+                page.appbar.bgcolor = ft.Colors.TRANSPARENT
+        else:
+            # Modo Normal
+            page.bgcolor = "#111111"
+            if page.appbar:
+                page.appbar.bgcolor = "#111111"
+                
+        page.update() #Aplicar transparência inicial (Movido para após o carregamento da config)
+    # apply_transparency()
+
+    def always_on_top(e):
+        page.window.always_on_top = not page.window.always_on_top
+        btn_pin.icon = ft.Icons.PUSH_PIN if page.window.always_on_top else ft.Icons.PUSH_PIN_OUTLINED
+        btn_pin.icon_color = ft.Colors.BLUE_400 if page.window.always_on_top else ft.Colors.WHITE
+        
+        if page.window.always_on_top:
+             msg = "📌 Modo Compacto Ativado!"
+             page.window.width = 450
+             page.window.height = 600
+        else:
+             msg = "📌 Modo Normal Restaurado!"
+             page.window.width = 1000
+             page.window.height = 800
+
+        snackbar.content.value = msg
+        snackbar.bgcolor = ft.Colors.BLUE_700 if page.window.always_on_top else ft.Colors.GREY_700
+        snackbar.open = True
+        page.update()
+        rebuild_layout()
+
+    btn_pin = ft.IconButton(
+        icon=ft.Icons.PUSH_PIN_OUTLINED,
+        tooltip="Manter no Topo",
+        on_click=always_on_top,
+        icon_color=ft.Colors.WHITE
+    )
+
+    def export_backup_result(e: ft.FilePickerResultEvent):
+        if not e.path:
+            return
+
+        try:
+            backup_path = e.path
+            if not backup_path.endswith(".zip"):
+                backup_path += ".zip"
+                
+            with zipfile.ZipFile(backup_path, 'w') as zipf:
+                if CUSTOM_DATA_FILE.exists():
+                    zipf.write(CUSTOM_DATA_FILE, arcname="custom_data.json")
+                if CONFIG_FILE.exists():
+                    zipf.write(CONFIG_FILE, arcname="config.json")
+                if USAGE_STATS_FILE.exists():
+                    zipf.write(USAGE_STATS_FILE, arcname="usage_stats.json")
+            
+            snackbar.content.value = f"✅ Backup salvo em: {backup_path}"
+            snackbar.bgcolor = ft.Colors.GREEN_700
+            snackbar.open = True
+            page.update()
+        except Exception as ex:
+            snackbar.content.value = f"❌ Erro ao criar backup: {ex}"
+            snackbar.bgcolor = ft.Colors.RED_700
+            snackbar.open = True
+            page.update()
+
+    def import_backup_result(e: ft.FilePickerResultEvent):
+        if not e.files:
+            return
+
+        try:
+            backup_path = e.files[0].path
+            
+            with zipfile.ZipFile(backup_path, 'r') as zipf:
+                # Verificar arquivos válidos
+                file_names = zipf.namelist()
+                valid_files = ["custom_data.json", "config.json", "usage_stats.json"]
+                
+                extracted_count = 0
+                for file in valid_files:
+                    if file in file_names:
+                        zipf.extract(file, path="C:/tag-app")
+                        extracted_count += 1
+                
+                if extracted_count > 0:
+                    snackbar.content.value = f"✅ Restaurado com sucesso! Reinicie o app."
+                    snackbar.bgcolor = ft.Colors.GREEN_700
+                    # Forçar recarregamento visual simples ou pedir restart
+                    # Como recarregar tudo é complexo, melhor pedir restart
+                else:
+                    snackbar.content.value = "⚠️ Nenhum arquivo de dados válido encontrado no ZIP."
+                    snackbar.bgcolor = ft.Colors.ORANGE_700
+            
+            snackbar.open = True
+            page.update()
+            
+            # Recarregar layout se possível (tentativa simples)
+            if extracted_count > 0:
+                 # Recarregar dados em memória
+                 nonlocal custom_tags, custom_tags_games, custom_order, custom_categories, custom_category_hashtags, category_order, games, usage_stats
+                 
+                 (
+                    custom_tags,
+                    custom_tags_games,
+                    custom_order,
+                    custom_categories,
+                    custom_category_hashtags,
+                    category_order,
+                ) = load_custom_data()
+                
+                 usage_stats = load_usage_stats()
+                 
+                 # Reorganizar
+                 games = organize_characters(
+                    {**HASHTAGS, **custom_tags}, custom_tags_games, custom_categories
+                )
+                 rebuild_layout()
+                 
+        except Exception as ex:
+            snackbar.content.value = f"❌ Erro ao restaurar backup: {ex}"
+            snackbar.bgcolor = ft.Colors.RED_700
+            snackbar.open = True
+            page.update()
+
+    file_picker_export = ft.FilePicker(on_result=export_backup_result)
+    file_picker_import = ft.FilePicker(on_result=import_backup_result)
+    page.overlay.extend([file_picker_export, file_picker_import])
+
+    def show_backup_dialog():
+        dialog = ft.AlertDialog(
+            title=ft.Text("Backup e Restauração", weight=ft.FontWeight.BOLD),
+            content=ft.Column(
+                [
+                    ft.Text("Salve ou restaure seus dados (Tags, Configs, Stats)."),
+                    ft.Divider(),
+                    ft.ElevatedButton(
+                        "Exportar Backup (.zip)",
+                        icon=ft.Icons.SAVE_ALT,
+                        bgcolor=ft.Colors.BLUE_700,
+                        color=ft.Colors.WHITE,
+                        on_click=lambda _: file_picker_export.save_file(
+                            dialog_title="Salvar Backup",
+                            file_name=f"tag_app_backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
+                            allowed_extensions=["zip"]
+                        ),
+                        width=300
+                    ),
+                    ft.ElevatedButton(
+                        "Restaurar Backup (.zip)",
+                        icon=ft.Icons.FILE_UPLOAD,
+                        bgcolor=ft.Colors.ORANGE_700,
+                        color=ft.Colors.WHITE,
+                        on_click=lambda _: file_picker_import.pick_files(
+                            dialog_title="Selecionar Backup",
+                            allowed_extensions=["zip"],
+                            allow_multiple=False
+                        ),
+                        width=300
+                    ),
+                    ft.Text(
+                        "⚠️ A restauração substituirá seus dados atuais!",
+                        size=12, color=ft.Colors.RED_400, italic=True
+                    )
+                ],
+                tight=True,
+                spacing=15,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER
+            ),
+            actions=[
+                ft.TextButton("Fechar", on_click=lambda e: close_dialog(dialog))
+            ],
+        )
+        page.overlay.append(dialog)
+        dialog.open = True
+        page.update()
 
     # Carregar dados personalizados
     (
@@ -413,6 +628,12 @@ def main(page: ft.Page) -> None:
 
     # Carregar configurações da interface
     config = load_config()
+    
+    # Aplicar transparência inicial
+    apply_transparency()
+
+    # Carregar estatísticas
+    usage_stats = load_usage_stats()
 
     # Aplicar configurações
     page.theme_mode = (
@@ -496,7 +717,6 @@ def main(page: ft.Page) -> None:
             page.update()
         return success
 
-    # Área de teste para colar
     test_area = ft.TextField(
         label="Área de Teste - Cole aqui (Ctrl+V) para verificar",
         multiline=True,
@@ -506,6 +726,38 @@ def main(page: ft.Page) -> None:
         width=550,
     )
 
+    def increment_usage(char_name: str) -> None:
+        """Incrementa estatísticas de uso para um personagem."""
+        nonlocal usage_stats
+        
+        # Encontrar jogo do personagem
+        game_code = custom_tags_games.get(char_name)
+        if not game_code:
+            # Tentar encontrar nos jogos padrão
+            for gc, gdata in games.items():
+                if char_name in gdata["chars"]:
+                    game_code = gc
+                    break
+        
+        if not game_code:
+            game_code = "UNKNOWN"
+
+        # Atualizar contadores
+        usage_stats["total_clicks"] = usage_stats.get("total_clicks", 0) + 1
+        
+        # Por Jogo
+        if "by_game" not in usage_stats:
+            usage_stats["by_game"] = {}
+        usage_stats["by_game"][game_code] = usage_stats["by_game"].get(game_code, 0) + 1
+        
+        # Por Personagem
+        if "by_char" not in usage_stats:
+            usage_stats["by_char"] = {}
+        usage_stats["by_char"][char_name] = usage_stats["by_char"].get(char_name, 0) + 1
+        
+        # Salvar em background (ou direto, já que é pouco frequente)
+        save_usage_stats(usage_stats)
+
     def copy_hashtags(char_name: str) -> None:
         """Copia hashtags para a área de transferência"""
         if char_name in all_hashtags:
@@ -514,6 +766,10 @@ def main(page: ft.Page) -> None:
                 snackbar.content.value = f"✓ Hashtags de {char_name} copiadas!"
                 snackbar.content.color = ft.Colors.WHITE
                 snackbar.bgcolor = ft.Colors.GREEN_700
+                
+                # Registrar uso
+                increment_usage(char_name)
+                
             except Exception as e:
                 snackbar.content.value = f"Erro ao copiar: {str(e)}"
                 snackbar.bgcolor = ft.Colors.RED_700
@@ -877,6 +1133,157 @@ def main(page: ft.Page) -> None:
         dialog.open = False
         page.update()
 
+    def show_stats_dialog() -> None:
+        """Mostra diálogo com estatísticas de uso."""
+        
+        # Recarregar para garantir dados atualizados
+        current_stats = load_usage_stats()
+        
+        total = current_stats.get("total_clicks", 0)
+        by_game = current_stats.get("by_game", {})
+        by_char = current_stats.get("by_char", {})
+        
+        if total == 0:
+             snackbar.content.value = "📊 Sem dados de uso ainda!"
+             snackbar.bgcolor = ft.Colors.BLUE_700
+             snackbar.open = True
+             page.update()
+             return
+
+        # 1. Gráfico de Pizza (Jogos)
+        game_sections_chart = []
+        colors = [
+            ft.Colors.BLUE, ft.Colors.RED, ft.Colors.GREEN, 
+            ft.Colors.ORANGE, ft.Colors.PURPLE, ft.Colors.CYAN, ft.Colors.TEAL
+        ]
+        
+        sorted_games = sorted(by_game.items(), key=lambda x: x[1], reverse=True)
+        
+        for i, (game, count) in enumerate(sorted_games):
+            color = colors[i % len(colors)]
+            percentage = (count / total) * 100
+            game_sections_chart.append(
+                ft.PieChartSection(
+                    count,
+                    title=f"{game}\n{percentage:.0f}%",
+                    color=color,
+                    radius=60,
+                    title_style=ft.TextStyle(size=12, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
+                )
+            )
+            
+        pie_chart = ft.PieChart(
+            sections=game_sections_chart,
+            sections_space=2,
+            center_space_radius=30,
+            expand=True,
+        )
+
+        # 2. Gráfico de Barras (Top 5 Personagens)
+        sorted_chars = sorted(by_char.items(), key=lambda x: x[1], reverse=True)[:5]
+        bar_groups = []
+        
+        max_count = sorted_chars[0][1] if sorted_chars else 1
+        
+        for i, (char, count) in enumerate(sorted_chars):
+             bar_groups.append(
+                 ft.BarChartGroup(
+                     x=i,
+                     bar_rods=[
+                         ft.BarChartRod(
+                             from_y=0,
+                             to_y=count,
+                             width=30,
+                             color=ft.Colors.AMBER_400,
+                             tooltip=f"{char}: {count}",
+                             border_radius=ft.border_radius.all(4),
+                         )
+                     ],
+                 )
+             )
+
+        bar_chart = ft.BarChart(
+            bar_groups=bar_groups,
+            border=ft.border.all(1, ft.Colors.GREY_800),
+            left_axis=ft.ChartAxis(
+                labels_size=30,
+                title=ft.Text("Clicks", size=10),
+                title_size=20,
+            ),
+            bottom_axis=ft.ChartAxis(
+                labels=[
+                    ft.ChartAxisLabel(
+                        value=i,
+                        label=ft.Container(
+                            ft.Text(char[:10], size=10, weight=ft.FontWeight.BOLD), 
+                            padding=5
+                        ),
+                    ) for i, (char, _) in enumerate(sorted_chars)
+                ],
+                labels_size=40,
+            ),
+            horizontal_grid_lines=ft.ChartGridLines(
+                color=ft.Colors.GREY_800, width=1, dash_pattern=[3, 3]
+            ),
+            tooltip_bgcolor=ft.Colors.GREY_900,
+            max_y=max_count + (max_count * 0.2), # Margem superior
+            expand=True,
+        )
+
+        # Tabs para alternar visualizações
+        tabs = ft.Tabs(
+            selected_index=0,
+            animation_duration=300,
+            tabs=[
+                ft.Tab(
+                    text="Por Personagem (Top 5)",
+                    icon=ft.Icons.BAR_CHART,
+                    content=ft.Container(
+                        content=bar_chart,
+                        padding=20,
+                        margin=ft.margin.only(top=10),
+                    ),
+                ),
+                ft.Tab(
+                    text="Por Jogo",
+                    icon=ft.Icons.PIE_CHART,
+                    content=ft.Container(
+                        content=pie_chart,
+                        padding=20,
+                        margin=ft.margin.only(top=10),
+                    ),
+                ),
+            ],
+            expand=True,
+        )
+
+        dialog = ft.AlertDialog(
+            title=ft.Text("Estatísticas de Uso", weight=ft.FontWeight.BOLD),
+            content=ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Text(f"Total de Cópias: {total}", size=16, weight=ft.FontWeight.BOLD),
+                        ft.Divider(),
+                        ft.Container(
+                            content=tabs,
+                            height=400, # Altura fixa para o gráfico
+                            width=600,
+                        )
+                    ],
+                    tight=True,
+                ),
+                padding=0,
+            ),
+            actions=[
+                ft.TextButton("Fechar", on_click=lambda e: close_dialog(dialog))
+            ],
+            scrollable=True,
+        )
+        
+        page.overlay.append(dialog)
+        dialog.open = True
+        page.update()
+
     def create_games_layout() -> ft.Control:
         """Cria o layout dos jogos baseado no modo selecionado."""
         game_sections.clear()
@@ -1087,10 +1494,18 @@ def main(page: ft.Page) -> None:
                 scroll=ft.ScrollMode.AUTO,
                 expand=True,
             )
-        elif layout_mode["value"] == "grid2x4":
-            first_row = ft.Row(controls=game_elements[:4], spacing=15, expand=True)
-            second_row = ft.Row(controls=game_elements[4:], spacing=15, expand=True)
-            return ft.Column(controls=[first_row, second_row], spacing=15, expand=True)
+        elif layout_mode["value"] == "dynamicgrid":
+            # Grid Dinâmico (substituindo o antigo Grid 2x4 fixo)
+            return ft.GridView(
+                controls=game_elements,
+                expand=True,
+                runs_count=5, # Começa tentando 5, mas ajusta com max_extent
+                max_extent=350, # Largura máxima aproximada de cada card
+                child_aspect_ratio=0.65, # Ajuste para cards verticais (altura > largura)
+                spacing=15,
+                run_spacing=15,
+                padding=10,
+            )
 
     def rebuild_layout() -> None:
         """Reconstrói o layout completo."""
@@ -1101,28 +1516,135 @@ def main(page: ft.Page) -> None:
         games_layout = create_games_layout()
 
         # Recriar página
+        
+        # Se estiver em modo "Always on Top" (Compacto), esconder cabeçalho
+        is_compact = page.window.always_on_top
+
+        # Configurar AppBar baseada no modo
+        if is_compact:
+            page.appbar = ft.AppBar(
+                title=ft.Text(""), # Titulo vazio para economizar espaço
+                bgcolor=ft.Colors.TRANSPARENT if config.get("acrylic_mode") else "#111111",
+                toolbar_height=40, # Barra mais fina
+                actions=[btn_pin], # Apenas o botão de pin
+            )
+        else:
+             page.appbar = ft.AppBar(
+                title=ft.Row(
+                    [
+                        ft.Image(
+                            src="src/assets/icon-256.ico",
+                            width=32,
+                            height=32,
+                        ),
+                        ft.Text("Hashtags por Jogo", size=20, weight=ft.FontWeight.BOLD),
+                    ],
+                    spacing=10,
+                    alignment=ft.MainAxisAlignment.START,
+                ),
+                center_title=False,
+                bgcolor=ft.Colors.TRANSPARENT if config.get("acrylic_mode") else "#111111",
+                actions=[
+                    ft.IconButton(
+                         content=ft.Image(
+                            src="src/assets/bar-chart.svg",
+                            width=24,
+                            height=24,
+                            color=ft.Colors.WHITE,
+                            rotate=3.14, # Invertendo icon graficamente (180 graus)
+                        ),
+                        tooltip="Estatísticas",
+                        on_click=lambda _: show_stats_dialog(),
+                    ),
+                    btn_pin,
+                    ft.IconButton(
+                         content=ft.Image(
+                            src="src/assets/circle-plus.svg",
+                            width=24,
+                            height=24,
+                            color=ft.Colors.WHITE,
+                        ),
+                        tooltip="Adicionar Novo",
+                        on_click=show_add_menu,
+                    ),
+                    ft.IconButton(
+                        content=ft.Image(
+                            src="src/assets/folder-cog.svg",
+                            width=24,
+                            height=24,
+                            color=ft.Colors.WHITE,
+                        ),
+                        tooltip="Gerenciar Categorias",
+                        on_click=show_manage_categories_dialog,
+                    ),
+                    ft.IconButton(
+                        content=ft.Image(
+                            src="src/assets/rotate-cw.svg",
+                            width=24,
+                            height=24,
+                            color=ft.Colors.WHITE,
+                        ),
+                        tooltip="Recarregar",
+                        on_click=lambda e: rebuild_game_sections(),
+                    ),
+                    ft.IconButton(
+                        content=ft.Image(
+                            src="src/assets/info.svg",
+                            width=24,
+                            height=24,
+                            color=ft.Colors.WHITE,
+                        ),
+                        tooltip="Sobre",
+                        on_click=show_about_dialog,
+                    ),
+                    ft.IconButton(
+                        icon=ft.Icons.SETTINGS,
+                        tooltip="Configurações",
+                        on_click=show_settings_dialog,
+                        icon_color=ft.Colors.WHITE,
+                    ),
+                ],
+            )
+
+        header_content = ft.Column(
+            [
+                ft.Row(
+                    [
+                        search_field,
+                        sort_dropdown,
+                        clear_btn,
+                        ft.IconButton(
+                            content=ft.Image(
+                                src="src/assets/bar-chart.svg",
+                                width=24,
+                                height=24,
+                                color=ft.Colors.WHITE,
+                            ),
+                            tooltip="Estatísticas",
+                            on_click=lambda _: show_stats_dialog(), 
+                            visible=False, # Removido (movido para AppBar)
+                        ),
+                    ],
+                    alignment=ft.MainAxisAlignment.START,
+                    spacing=10,
+                ),
+                test_area,
+                ft.Divider(height=10),
+            ]
+        )
+
         page.add(
             ft.Container(
                 content=ft.Column(
                     [
-                        ft.Row(
-                            [
-                                search_field,
-                                sort_dropdown,
-                                clear_btn,
-                            ],
-                            alignment=ft.MainAxisAlignment.START,
-                            spacing=10,
-                        ),
-                        test_area,
-                        ft.Divider(height=10),
+                        header_content if not is_compact else ft.Container(), # Esconder cabeçalho no modo compacto
                         ft.Container(
                             content=games_layout,
                             expand=True,
                         ),
                     ]
                 ),
-                padding=20,
+                padding=ft.padding.only(left=10, top=10, right=10, bottom=0) if is_compact else ft.padding.only(left=20, top=20, right=20, bottom=0),
                 expand=True,
             )
         )
@@ -2351,7 +2873,7 @@ def main(page: ft.Page) -> None:
             content=ft.Column(
                 [
                     ft.Radio(value="Colunas", label="📊 Colunas (Padrão)"),
-                    ft.Radio(value="grid2x4", label="📐 Grid 2x4"),
+                    ft.Radio(value="dynamicgrid", label="💠 Grid Dinâmico"),
                     ft.Radio(value="tabs", label="📑 Abas (Tabs)"),
                     ft.Radio(value="icons", label="🖼️ Ícones"),
                 ]
@@ -2364,6 +2886,29 @@ def main(page: ft.Page) -> None:
             label="🔓 Modo Avançado (Editar todas as tags)",
             value=advanced_mode["value"],
         )
+
+        # Switch para modo acrílico
+        acrylic_switch = ft.Switch(
+            label="✨ Modo Acrílico (Transparência)",
+            value=config.get("acrylic_mode", False),
+            active_color=ft.Colors.CYAN_400,
+            on_change=lambda e: toggle_acrylic_options(e.control.value),
+        )
+
+        # Slider de Opacidade
+        opacity_slider = ft.Slider(
+            min=10,
+            max=100,
+            divisions=90,
+            value=int(config.get("acrylic_opacity", 0.7) * 100),
+            label="{value}%",
+            active_color=ft.Colors.CYAN_400,
+            visible=config.get("acrylic_mode", False),
+        )
+
+        def toggle_acrylic_options(is_visible: bool):
+            opacity_slider.visible = is_visible
+            settings_dialog.update()
 
         def reset_custom_order(e: ft.ControlEvent) -> None:
             """Reseta a ordem personalizada para alfabética."""
@@ -2398,6 +2943,11 @@ def main(page: ft.Page) -> None:
             advanced_mode["value"] = advanced_switch.value
             config["advanced_mode"] = advanced_mode["value"]
 
+            # Aplicar modo acrílico
+            config["acrylic_mode"] = acrylic_switch.value
+            config["acrylic_opacity"] = opacity_slider.value / 100.0
+            apply_transparency()
+
             # Aplicar layout
             layout_mode["value"] = layout_radio.value
             config["layout_mode"] = layout_mode["value"]
@@ -2415,8 +2965,17 @@ def main(page: ft.Page) -> None:
             title=ft.Text("⚙️ Configurações", weight=ft.FontWeight.BOLD),
             content=ft.Column(
                 [
-                    ft.Text("Tema", size=14, weight=ft.FontWeight.BOLD),
+                    ft.Text("Visual e Tema", size=14, weight=ft.FontWeight.BOLD),
                     theme_radio,
+                    ft.Container(height=5), # Espaçamento
+                    acrylic_switch,
+                    opacity_slider,
+                    ft.Text(
+                        "Ativa fundo semi-transparente (efeito acrílico)",
+                        size=11,
+                        italic=True,
+                        color=ft.Colors.CYAN_500,
+                    ),
                     ft.Divider(),
                     ft.Text("Layout", size=14, weight=ft.FontWeight.BOLD),
                     layout_radio,
@@ -2539,6 +3098,17 @@ def main(page: ft.Page) -> None:
         center_title=False,
         bgcolor=ft.Colors.BLUE_GREY_900,
         actions=[
+            ft.IconButton(
+                content=ft.Image(
+                    src="src/assets/bar-chart.svg",
+                    width=24,
+                    height=24,
+                    color=ft.Colors.WHITE,
+                ),
+                tooltip="Estatísticas",
+                on_click=lambda _: show_stats_dialog(),
+            ),
+            btn_pin,
             ft.IconButton(
                 content=ft.Image(
                     src="src/assets/circle-plus.svg",
@@ -2803,35 +3373,8 @@ def main(page: ft.Page) -> None:
             file_type=ft.FilePickerFileType.CUSTOM,
         )
 
-    # Criar layout inicial baseado no modo selecionado
-    games_layout = create_games_layout()
-
-    # Layout principal
-    page.add(
-        ft.Container(
-            content=ft.Column(
-                [
-                    ft.Row(
-                        [
-                            search_field,
-                            sort_dropdown,
-                            clear_btn,
-                        ],
-                        alignment=ft.MainAxisAlignment.START,
-                        spacing=10,
-                    ),
-                    test_area,
-                    ft.Divider(height=10),
-                    ft.Container(
-                        content=games_layout,
-                        expand=True,
-                    ),
-                ]
-            ),
-            padding=20,
-            expand=True,
-        )
-    )
+    # Layout principal inicial (usar rebuild_layout para evitar duplicação)
+    rebuild_layout()
 
     # Garantir que as seções estão sincronizadas
     page.update()
