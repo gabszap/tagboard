@@ -1,0 +1,25 @@
+# Bun configuration file
+# https://bun.sh/docs/runtime/bunfig
+
+[install]
+# Use exact versions from package.json
+exact = true
+
+# Cache packages
+cache = true
+
+[run]
+# Default environment
+env = "development"
+
+# Shell for running scripts
+shell = "system"
+
+[test]
+# Test configuration
+coverage = true
+
+[build]
+# Build configuration
+minify = true
+splitting = true

@@ -1,0 +1,62 @@
+{
+  "name": "tag-app",
+  "version": "2.0.0",
+  "description": "Gerenciador de Hashtags para Jogos - JavaScript Edition",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "cross-env NODE_ENV=development electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "lint": "eslint src/**/*.js"
+  },
+  "keywords": [
+    "hashtags",
+    "games",
+    "gacha",
+    "electron"
+  ],
+  "author": "gabszap",
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "cross-env": "^7.0.3",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "electron-reload": "2.0.0-alpha.1",
+    "eslint": "10.0.0",
+    "globals": "17.3.0"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.10",
+    "axios": "^1.6.2"
+  },
+  "build": {
+    "appId": "com.tagapp.desktop",
+    "productName": "TagApp",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icons"
+    }
+  }
+}

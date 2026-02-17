@@ -1,0 +1,273 @@
+{
+  "games": {
+    "HSR": {
+      "custom_category": false,
+      "category": "Honkai: Star Rail",
+      "category_hashtags": "#HonkaiStarRail #崩壊スターレイル",
+      "characters": {
+        "Saber": "#HonkaiStarRail #崩壊スターレイル #Saber #セイバー",
+        "Seele": "#HonkaiStarRail #崩壊スターレイル #Seele #ゼーレ",
+        "Aglaea": "#HonkaiStarRail #崩壊スターレイル #Aglaea #アグライア",
+        "Tribbie/Tribios": "#HonkaiStarRail #崩壊スターレイル #Tribbie #Tribios #トリビー",
+        "Cyrene": "#HonkaiStarRail #崩壊スターレイル #Cyrene #キュレネ",
+        "Cipher": "#HonkaiStarRail #崩壊スターレイル #Cipher #サフェル",
+        "Cerydra": "#HonkaiStarRail #崩壊スターレイル #Cerydra #ケリュドラ",
+        "Evernight": "#HonkaiStarRail #崩壊スターレイル #Evernight #長なが夜よ月"
+      },
+      "order": [
+        "Acheron",
+        "Aglaea",
+        "Black Swan",
+        "BronyaHSR",
+        "Castorice",
+        "Cerydra",
+        "Cipher",
+        "Cyrene",
+        "Evernight",
+        "Feixiao",
+        "Firefly",
+        "FuXuan",
+        "Guinaifen",
+        "Hanya",
+        "Herta",
+        "Himeko",
+        "Hysilens",
+        "Jade",
+        "Jingliu",
+        "Kafka",
+        "Lingsha",
+        "March 7th",
+        "Rappa",
+        "Robin",
+        "Ruan Mei",
+        "Saber",
+        "Seele",
+        "Silver Wolf",
+        "Sparkle",
+        "Stelle",
+        "Tingyun",
+        "Topaz",
+        "Tribbie/Tribios",
+        "Yukong"
+      ]
+    },
+    "GI": {
+      "custom_category": false,
+      "category": "Genshin Impact",
+      "category_hashtags": "#GenshinImpact #原神",
+      "characters": {
+        "Nefer": "#GenshinImpact #原神 #Nefer #ネフェル",
+        "Lauma": "#GenshinImpact #原神 #Lauma #ラウマ"
+      },
+      "order": [
+        "Arlecchino",
+        "Ayaka",
+        "Chiori",
+        "Citlali",
+        "Clorinde",
+        "Escoffier",
+        "Eula",
+        "Furina",
+        "Ganyu",
+        "HuTao",
+        "Jean",
+        "Keqing",
+        "Kokomi",
+        "Lauma",
+        "Lumine",
+        "Mavuika",
+        "Mizuki",
+        "Mona",
+        "Navia",
+        "Nefer",
+        "Raiden",
+        "Shenhe",
+        "Skirk",
+        "Xianyun",
+        "Yae Miko",
+        "Yelan",
+        "Yoimiya"
+      ]
+    },
+    "HI3": {
+      "custom_category": false,
+      "category": "Honkai Impact 3rd",
+      "category_hashtags": "#HonkaiImpact3rd #崩壊3rd",
+      "characters": {
+        "Sparkle Hi3": "#HonkaiImpact3rd #崩壊3rd #Sparkle #花火",
+        "Senadina": "#HonkaiImpact3rd #崩壊3rd #Senadina #セナディア"
+      },
+      "order": [
+        "BronyaHI3",
+        "Dreamseeker",
+        "Eden",
+        "Elysia",
+        "Kiana Kaslana",
+        "Lantern",
+        "Raiden Mei",
+        "Rita",
+        "Senadina",
+        "Songque",
+        "Sparkle Hi3",
+        "Thelema",
+        "Theresa",
+        "Vill-V",
+        "Vita"
+      ]
+    },
+    "ZZZ": {
+      "custom_category": false,
+      "category": "Zenless Zone Zero",
+      "category_hashtags": "#zzzero #ゼンゼロ #ZenlessZoneZero",
+      "characters": {
+        "Lucia": "#zzzero #ゼンゼロ #ZenlessZoneZero #Lucia #リュシア・エロウェン ",
+        "Yidhari": "#zzzero #ゼンゼロ #ZenlessZoneZero #Yidhari #イドリー・マーフィー",
+        "Ye ShunGuang": "#zzzero #ゼンゼロ #ZenlessZoneZero #yeshunguang #葉瞬光"
+      },
+      "order": [
+        "Alice Thymefield",
+        "Anby Demara",
+        "Astra Yao",
+        "Belle",
+        "Burnice",
+        "Caesar",
+        "Ellen Joe",
+        "Evelyn Chevalier",
+        "Grace",
+        "Jane Doe",
+        "Ju Fufu",
+        "Lucia",
+        "Miyabi",
+        "Nicole",
+        "Orphie",
+        "Qingyi",
+        "Rina",
+        "Seed",
+        "Trigger",
+        "Vivian",
+        "Yanagi",
+        "Ye ShunGuang",
+        "Yidhari",
+        "Yixuan",
+        "Yuzuha",
+        "Zhu Yuan"
+      ]
+    },
+    "WW": {
+      "custom_category": false,
+      "category": "Wuthering Waves",
+      "category_hashtags": "#WutheringWaves #鳴潮",
+      "characters": {},
+      "order": [
+        "Augusta",
+        "Baizhi",
+        "Camellya",
+        "Cantarella",
+        "Carlotta",
+        "Cartethyia",
+        "Changli",
+        "Chisa",
+        "Ciaccona",
+        "Frover",
+        "Galbrena",
+        "Iuno",
+        "Jinshi",
+        "Lupa",
+        "Phoebe",
+        "Phrolova",
+        "Shorekeeper",
+        "Taoqi",
+        "Yinlin",
+        "Zani"
+      ]
+    },
+    "BA": {
+      "custom_category": false,
+      "category": "Blue Archive",
+      "category_hashtags": "#BlueArchive #ブルアカ",
+      "characters": {},
+      "order": [
+        "Akane",
+        "Aru",
+        "Asuna",
+        "Hanako",
+        "Hasumi",
+        "Hina",
+        "Rio",
+        "Saori",
+        "Shiroko",
+        "Shun",
+        "Toki",
+        "Wakamo",
+        "Yuuka"
+      ]
+    },
+    "GF2": {
+      "custom_category": false,
+      "category": "Girls' Frontline 2",
+      "category_hashtags": "#GirlsFrontline2 #ドルフロ2",
+      "characters": {},
+      "order": [
+        "Andoris",
+        "Groza",
+        "Klukai",
+        "Makiatto",
+        "Mosin Nagant",
+        "Nemesis",
+        "Peritya",
+        "Qiongjiu",
+        "Qiuhua",
+        "Sabrina",
+        "Springfield",
+        "Suomi"
+      ]
+    },
+    "AK": {
+      "custom_category": true,
+      "category": "AK Endfield",
+      "category_hashtags": "#ArknightsEndfield #アークナイツエンドフィールド",
+      "characters": {
+        "Tteste242452342": "#ArknightsEndfield #アークナイツエンドフィールド #Teste242452342"
+      },
+      "order": ["Tteste242452342"]
+    },
+    "NIKKE": {
+      "custom_category": true,
+      "category": "Nikke",
+      "category_hashtags": "#NIKKE #ニケ #勝利の女神",
+      "characters": {
+        "Teste2424523422": "#NIKKE #ニケ #勝利の女神 #Teste2424523422"
+      },
+      "order": ["Teste2424523422"]
+    },
+    "FGO": {
+      "custom_category": true,
+      "category": "fate grand order",
+      "category_hashtags": "sdgsd",
+      "characters": {},
+      "order": []
+    },
+    "TEST": {
+      "custom_category": true,
+      "category": "test",
+      "category_hashtags": "sfsgsdsa",
+      "characters": {
+        "Teste": "sfsgsdsa #testeeeeeeeeeeeeeeeeee"
+      },
+      "order": ["Teste"]
+    }
+  },
+  "category_order": [
+    "HSR",
+    "GI",
+    "HI3",
+    "ZZZ",
+    "BA",
+    "WW",
+    "GF2",
+    "AK",
+    "NIKKE",
+    "FGO",
+    "TEST"
+  ]
+}

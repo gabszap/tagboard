@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TagApp - Gerenciador de Hashtags</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="app-container" id="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo">
+                    <img src="../assets/icon_orig.png" style="width:24px;height:24px;">
+                </div>
+                <h1>Hashtags por Jogo</h1>
+            </div>
+            <div class="header-right">
+                <button id="btn-stats" class="icon-btn" title="Estatísticas">
+                    <img src="../assets/bar-chart2.svg" style="width:24px;height:24px;" alt="Stats">
+                </button>
+                <button id="btn-pin" class="icon-btn" title="Manter no Topo">
+                    <img src="../assets/pushpin.svg" alt="Pin">
+                </button>
+                <button id="btn-add-menu" class="icon-btn" title="Adicionar">
+                    <img src="../assets/circle-plus.svg" alt="Add">
+                </button>
+                <button id="btn-categories" class="icon-btn" title="Gerenciar Categorias">
+                    <img src="../assets/folder-cog.svg" alt="Categories">
+                </button>
+                <button id="btn-refresh" class="icon-btn" title="Atualizar">
+                    <img src="../assets/rotate-cw.svg" alt="Refresh">
+                </button>
+                <button id="btn-about" class="icon-btn" title="Sobre">
+                    <img src="../assets/info.svg" alt="About">
+                </button>
+                <button id="btn-config" class="icon-btn" title="Configurações">
+                    <img src="../assets/gear.svg" alt="Settings">
+                </button>
+            </div>
+        </header>
+
+        <!-- Search and Controls -->
+        <div class="controls-bar">
+            <div class="search-box">
+                <img src="../assets/search.svg" style="width:24px;height:24px;" class="search-icon" alt="Pesquisar">
+                <input type="text" id="search-input" placeholder="Pesquisar personagem">
+                <button id="btn-clear-search" class="clear-btn">
+                    <img src="../assets/x.svg" alt="Limpar">
+                </button>
+            </div>
+            <div class="view-controls">
+                <span class="sort-label">Ordenar por</span>
+                <select id="sort-select">
+                    <option value="alphabetical">Alfabética</option>
+                    <option value="custom">Personalizada</option>
+                </select>
+                <button id="btn-clear-clipboard" class="btn-red">
+                    <img src="../assets/trash.svg"
+                        style="width:16px;height:16px;filter:invert(100%);vertical-align:middle;margin-right:6px;">
+                    Limpar Clipboard
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Tabs -->
+        <div class="game-tabs" id="game-tabs">
+            <!-- Tabs serão inseridas dinamicamente -->
+        </div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div id="characters-grid" class="characters-grid">
+                <!-- Personagens serão inseridos dinamicamente -->
+            </div>
+
+            <div id="characters-empty" class="characters-empty" style="display:none;">
+                <div class="empty-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" style="color: var(--blue);">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+                <h3 id="characters-empty-title">Nenhum resultado</h3>
+                <p id="characters-empty-subtitle">Tente outro termo ou limpe a busca.</p>
+                <div class="empty-actions">
+                    <button id="btn-empty-clear" class="btn-secondary">Limpar busca</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Test Area -->
+        <div class="test-area">
+            <label>Área de Teste - Cole aqui (Ctrl+V) para verificar</label>
+            <textarea id="test-input" placeholder="Cole as hashtags aqui..."></textarea>
+        </div>
+
+        <!-- Snackbar -->
+        <div id="snackbar" class="snackbar-stack" aria-live="polite" aria-relevant="additions text"></div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Add Menu Modal -->
+    <div id="add-menu-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><img src="../assets/plus.svg" class="theme-icon"> Adicionar Novo</h2>
+                <button class="close-btn"><img src="../assets/x.svg" class="theme-icon"></button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">O que você deseja adicionar?</p>
+                <div class="menu-options">
+                    <button class="menu-option"
+                        onclick="showModal('add-tag-modal'); closeAllModalsExcept('add-tag-modal')">
+                        <div class="menu-icon-circle">
+                            <img src="../assets/hashtag.svg" class="theme-icon">
+                        </div>
+                        <div class="menu-text">
+                            <strong>Nova Tag</strong>
+                            <small>Adicionar personagem a uma categoria</small>
+                        </div>
+                    </button>
+                    <button class="menu-option"
+                        onclick="showModal('batch-add-modal'); closeAllModalsExcept('batch-add-modal')">
+                        <div class="menu-icon-circle">
+                            <img src="../assets/hashtag.svg" class="theme-icon">
+                        </div>
+                        <div class="menu-text">
+                            <strong>Adicionar em Lote</strong>
+                            <small>Adicionar várias tags de uma vez</small>
+                        </div>
+                    </button>
+                    <button class="menu-option"
+                        onclick="showModal('add-category-modal'); closeAllModalsExcept('add-category-modal')">
+                        <div class="menu-icon-circle">
+                            <img src="../assets/folder-plus.svg" class="theme-icon">
+                        </div>
+                        <div class="menu-text">
+                            <strong>Nova Categoria</strong>
+                            <small>Criar uma nova categoria</small>
+                        </div>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-link close-modal-btn">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Tag Modal -->
+    <div id="add-tag-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><img src="../assets/plus.svg" class="theme-icon"> Nova Tag</h2>
+                <button class="close-btn"><img src="../assets/x.svg" class="theme-icon"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nome do Personagem</label>
+                    <input type="text" id="new-char-name" placeholder="Ex: Saber">
+                </div>
+                <div class="form-group">
+                    <label>Jogo/Categoria</label>
+                    <select id="new-char-game">
+                        <option value="HSR">Honkai: Star Rail</option>
+                        <option value="GI">Genshin Impact</option>
+                        <option value="HI3">Honkai Impact 3rd</option>
+                        <option value="ZZZ">Zenless Zone Zero</option>
+                        <option value="WW">Wuthering Waves</option>
+                        <option value="BA">Blue Archive</option>
+                        <option value="GF2">Girls' Frontline 2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Hashtags</label>
+                    <textarea id="new-char-hashtags" rows="3" placeholder="#Saber #セイバー"></textarea>
+                    <small class="form-hint">As hashtags do jogo serão adicionadas automaticamente</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-link close-modal-btn">Cancelar</button>
+                <button id="btn-add-char" class="btn-primary">
+                    <img src="../assets/plus.svg" class="theme-icon"> Adicionar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Add Modal -->
+    <div id="batch-add-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2><img src="../assets/plus.svg" class="theme-icon"> Adicionar em Lote</h2>
+                <button class="close-btn"><img src="../assets/x.svg" class="theme-icon"></button>
+            </div>
+            <div class="modal-body">
+                <div class="format-hint-box">
+                    <strong>Formato: personagem, tags</strong>
+                    <p>Exemplo:</p>
+                    <p class="example">Saber, Saber セイバー</p>
+                    <p class="example">Seele, Seele ゼーレ</p>
+                    <p class="example">Acheron, Acheron 黄泉</p>
+                </div>
+                <div class="form-group">
+                    <label>Tags em Lote</label>
+                    <textarea id="batch-tags-input" rows="8"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Jogo</label>
+                    <select id="batch-char-game">
+                        <option value="HSR">Honkai: Star Rail</option>
+                        <option value="GI">Genshin Impact</option>
+                        <option value="HI3">Honkai Impact 3rd</option>
+                        <option value="ZZZ">Zenless Zone Zero</option>
+                        <option value="WW">Wuthering Waves</option>
+                        <option value="BA">Blue Archive</option>
+                        <option value="GF2">Girls' Frontline 2</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-link close-modal-btn">Cancelar</button>
+                <button id="btn-batch-add" class="btn-primary">
+                    <img src="../assets/plus.svg" class="theme-icon"> Adicionar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Category Modal -->
+    <div id="add-category-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><img src="../assets/plus.svg" class="theme-icon"> Adicionar Nova Categoria</h2>
+                <button class="close-btn"><img src="../assets/x.svg" class="theme-icon"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nome da Categoria</label>
+                    <input type="text" id="new-category-name" placeholder="Ex: NIKKE">
+                </div>
+                <div class="form-group">
+                    <label>Código (opcional)</label>
+                    <input type="text" id="new-category-code" placeholder="Ex: NIKKE, AL, AK">
+                </div>
+                <div class="form-group">
+                    <label>Hashtags da Categoria</label>
+                    <textarea id="new-category-hashtags" rows="2" placeholder="#NIKKE #ニケ"></textarea>
+                </div>
+                <p class="hint-text">
+                    💡 Dica: Use códigos curtos e únicos (ex: NIKKE, AL, AK)
+                </p>
+                <p class="hint-text secondary">
+                    As hashtags serão adicionadas automaticamente às tags dessa categoria
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-link close-modal-btn">Cancelar</button>
+                <button id="btn-add-category" class="btn-primary">
+                    <img src="../assets/plus.svg" class="theme-icon"> Adicionar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Tag Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><img src="../assets/pencil.svg" style="width:20px;height:20px;filter:invert(100%);"> Editar Tag</h2>
+                <button class="close-btn"><img src="../assets/x.svg" class="theme-icon"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Personagem</label>
+                    <input type="text" id="edit-char-name" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Jogo/Categoria</label>
+                    <select id="edit-char-game">
+                        <option value="HSR">Honkai: Star Rail</option>
+                        <option value="GI">Genshin Impact</option>
+                        <option value="HI3">Honkai Impact 3rd</option>
+                        <option value="ZZZ">Zenless Zone Zero</option>
+                        <option value="WW">Wuthering Waves</option>
+                        <option value="BA">Blue Archive</option>
+                        <option value="GF2">Girls' Frontline 2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Hashtags</label>
+                    <textarea id="edit-hashtags" rows="4"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-delete-tag" class="btn-danger">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" style="color: currentColor;">
+                        <path d="M3 6h18" />
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                        <line x1="10" x2="10" y1="11" y2="17" />
+                        <line x1="14" x2="14" y1="11" y2="17" />
+                    </svg>
+                    Deletar
+                </button>
+                <button class="btn-secondary close-modal-btn">Cancelar</button>
+                <button id="btn-save-tag" class="btn-primary">
+                    Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content" style="max-width: 760px;">
+            <div class="modal-header">
+                <h2><img src="../assets/gear.svg" style="width:20px;height:20px;filter:invert(100%);"> Configurações
+                </h2>
+                <button class="close-btn"><img src="../assets/x.svg" class="theme-icon"></button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-shell">
+                    <aside class="settings-nav" aria-label="Categorias de configurações">
+                        <button type="button" class="settings-nav-btn active" data-settings-tab="appearance">
+                            <img src="../assets/nav-appearance.svg" class="nav-icon" alt="">
+                            Aparência
+                        </button>
+                        <button type="button" class="settings-nav-btn" data-settings-tab="layout">
+                            <img src="../assets/nav-layout.svg" class="nav-icon" alt="">
+                            Layout
+                        </button>
+                        <button type="button" class="settings-nav-btn" data-settings-tab="editing">
+                            <img src="../assets/nav-editing.svg" class="nav-icon" alt="">
+                            Edição
+                        </button>
+                        <button type="button" class="settings-nav-btn" data-settings-tab="order">
+                            <img src="../assets/nav-order.svg" class="nav-icon" alt="">
+                            Ordem
+                        </button>
+                        <button type="button" class="settings-nav-btn" data-settings-tab="backup">
+                            <img src="../assets/nav-backup.svg" class="nav-icon" alt="">
+                            Backup
+                        </button>
+                    </aside>
+
+                    <section class="settings-panels">
+                        <div class="settings-panel active" data-settings-panel="appearance">
+                            <!-- Visual e Tema -->
+                            <div class="settings-section">
+                                <h3>Visual e Tema</h3>
+
+                                <div class="form-group" style="margin-top: 10px;">
+                                    <label>Estilo do Tema</label>
+                                    <div class="radio-group vertical">
+                                        <label class="radio-label">
+                                            <input type="radio" name="theme-style" value="mocha" checked>
+                                            <span class="radio-custom"></span>
+                                            Catppuccin Mocha (Escuro)
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="theme-style" value="latte">
+                                            <span class="radio-custom"></span>
+                                            Catppuccin Latte (Claro)
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="theme-style" value="legacy">
+                                            <span class="radio-custom"></span>
+                                            Legacy Dark (Preto/Azul)
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="toggle-group" style="display: none;">
+                                    <div class="theme-toggle-title-row">
+                                        <label class="theme-switch" aria-label="Alternar tema">
+                                            <input type="checkbox" id="theme-toggle">
+                                            <span class="theme-switch-track" aria-hidden="true">
+                                                <span class="theme-switch-knob">
+                                                    <img id="theme-switch-icon" src="../assets/moon.svg" alt="">
+                                                </span>
+                                            </span>
+                                        </label>
+                                        <div class="theme-toggle-title">Tema</div>
+                                    </div>
+                                    <div class="theme-toggle-sub">Alterna entre Escuro e Claro</div>
+                                </div>
+
+                                <div class="settings-divider" role="separator" aria-hidden="true"></div>
+
+                                <div class="toggle-group">
+                                    <label class="toggle-label">
+                                        <input type="checkbox" id="acrylic-toggle">
+                                        <span class="toggle-slider"></span>
+                                        <span class="toggle-text">
+                                            <img src="../assets/sparkles.svg" class="inline-icon" alt="">
+                                            Modo Acrílico (Transparência)
+                                        </span>
+                                    </label>
+                                    <p class="toggle-hint">Ativa fundo semi-transparente (efeito acrílico)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-panel" data-settings-panel="layout">
+                            <!-- Layout -->
+                            <div class="settings-section">
+                                <h3>Layout</h3>
+                                <div class="radio-group vertical">
+                                    <label class="radio-label">
+                                        <input type="radio" name="layout" value="columns" checked>
+                                        <span class="radio-custom"></span>
+                                        <img src="../assets/layout-columns.svg" class="setting-icon" alt="Colunas">
+                                        Colunas (Padrão)
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="layout" value="grid">
+                                        <span class="radio-custom"></span>
+                                        <img src="../assets/layout-grid.svg" class="setting-icon" alt="Grid">
+                                        Grid Dinâmico
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="layout" value="tabs">
+                                        <span class="radio-custom"></span>
+                                        <img src="../assets/layout-tabs.svg" class="setting-icon" alt="Abas">
+                                        Abas (Tabs)
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="layout" value="icons">
+                                        <span class="radio-custom"></span>
+                                        <img src="../assets/layout-icons.svg" class="setting-icon" alt="Ícones">
+                                        Ícones
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-panel" data-settings-panel="editing">
+                            <!-- Edição de Tags -->
+                            <div class="settings-section">
+                                <h3>Edição de Tags</h3>
+                                <div class="toggle-group">
+                                    <label class="toggle-label">
+                                        <input type="checkbox" id="advanced-mode-toggle">
+                                        <span class="toggle-slider"></span>
+                                        <span class="toggle-text">
+                                            <img src="../assets/code.svg" class="inline-icon" alt="">
+                                            Modo Desenvolvedor
+                                        </span>
+                                    </label>
+                                    <p class="toggle-hint">Habilita controle total sobre o app. Use com cautela.</p>
+                                </div>
+
+                                <div class="settings-divider" role="separator" aria-hidden="true"></div>
+
+                                <div id="hidden-tags-section" style="display: none;">
+                                    <h3>Lixeira</h3>
+                                    <p class="section-description">Recupere tags padrões ou customizadas removidas</p>
+                                    <div id="hidden-tags-list" class="hidden-tags-grid">
+                                        <!-- Lista preenchida via JS -->
+                                    </div>
+                                    <div class="backup-buttons" style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                        <button id="btn-restore-all-hidden" class="btn-outline">
+                                            Restaurar Tudo
+                                        </button>
+                                        <button id="btn-empty-trash" class="btn-red-outline">
+                                            Esvaziar Lixeira
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-panel" data-settings-panel="order">
+                            <!-- Ordem Personalizada -->
+                            <div class="settings-section">
+                                <h3>Ordem Personalizada</h3>
+                                <button id="btn-reset-order" class="btn-red-outline">
+                                    <img src="../assets/rotate-cw.svg" class="btn-icon btn-icon-red" alt="">
+                                    Resetar Ordem Personalizada
+                                </button>
+                                <p class="toggle-hint">Reseta todas as personalizações de arrasto</p>
+                            </div>
+                        </div>
+
+                        <div class="settings-panel" data-settings-panel="backup">
+                            <!-- Backup e Restauração -->
+                            <div class="settings-section">
+                                <h3>Backup e Restauração</h3>
+                                <p class="section-description">Exporte ou importe suas configurações e dados
+                                    personalizados</p>
+
+                                <div class="backup-section">
+                                    <label>Custom Data (Tags)</label>
+                                    <div class="backup-buttons">
+                                        <button id="btn-export-data" class="btn-outline">
+                                            <img src="../assets/download.svg" class="btn-icon" alt="">
+                                            Exportar
+                                        </button>
+                                        <button id="btn-import-data" class="btn-outline">
+                                            <img src="../assets/upload.svg" class="btn-icon" alt="">
+                                            Importar
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="backup-section">
+                                    <label>Config (Interface)</label>
+                                    <div class="backup-buttons">
+                                        <button id="btn-export-config" class="btn-outline">
+                                            <img src="../assets/download.svg" class="btn-icon" alt="">
+                                            Exportar
+                                        </button>
+                                        <button id="btn-import-config" class="btn-outline">
+                                            <img src="../assets/upload.svg" class="btn-icon" alt="">
+                                            Importar
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="settings-divider" role="separator" aria-hidden="true"></div>
+
+                                <div class="backup-section">
+                                    <label>Cache</label>
+                                    <p class="section-description" style="margin-bottom: 10px;">Evita baixar ícones
+                                        repetidamente (útil para uso offline)</p>
+                                    <div class="backup-buttons">
+                                        <button id="btn-open-icon-cache" class="btn-outline">
+                                            <img src="../assets/folder.svg" class="btn-icon" alt="">
+                                            Abrir pasta
+                                        </button>
+                                        <button id="btn-clear-icon-cache" class="btn-red-outline">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                stroke-linejoin="round" style="color: currentColor;">
+                                                <path d="M3 6h18" />
+                                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                                <line x1="10" x2="10" y1="11" y2="17" />
+                                                <line x1="14" x2="14" y1="11" y2="17" />
+                                            </svg>
+                                            Limpar cache
+                                        </button>
+                                    </div>
+                                    <div class="cache-path" id="icon-cache-path" aria-label="Pasta do cache"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-link close-modal-btn">Cancelar</button>
+                <button id="btn-save-settings" class="btn-primary">Aplicar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Categories Modal -->
+    <div id="categories-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2><img src="../assets/folder.svg" style="width:20px;height:20px;filter:invert(100%);"> Gerenciar
+                    Categorias</h2>
+                <button class="close-btn"><img src="../assets/x.svg" class="theme-icon"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Categorias Customizadas -->
+                <div class="settings-section">
+                    <h3>Categorias Customizadas</h3>
+                    <div id="custom-categories-list" class="categories-list">
+                        <!-- Lista dinâmica -->
+                    </div>
+                    <p class="warning-text">
+                        ⚠️
+                        Deletar uma categoria também apaga as tags que ela contém
+                    </p>
+                </div>
+
+                <!-- Ordenar Categorias -->
+                <div class="settings-section">
+                    <h3>Ordenar Categorias</h3>
+                    <p class="section-description">Arraste para reordenar as categorias na tela principal</p>
+                    <div id="categories-order-list" class="categories-order-list">
+                        <!-- Lista ordenável -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-link close-modal-btn">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- About Modal -->
+    <div id="about-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2>Sobre o App</h2>
+                <button class="close-btn"><img src="../assets/x.svg" class="theme-icon"></button>
+            </div>
+            <div class="modal-body">
+                <div class="about-content">
+                    <div class="about-logo">
+                        <img src="../assets/hashtag.svg" class="theme-icon">
+                    </div>
+                    <h3>Hashtags por Jogo</h3>
+                    <p class="version">v2.0.0</p>
+
+                    <p class="description">
+                        Aplicativo para copiar hashtags de personagens de jogos rapidamente.
+                    </p>
+
+                    <div class="about-stats">
+                        <div class="about-stat">
+                            👥
+                            <span>Total de personagens: <strong id="about-total-chars">0</strong></span>
+                        </div>
+                        <div class="about-stat">
+                            🎮
+                            <span>Jogos suportados: <strong id="about-total-games">0</strong></span>
+                        </div>
+                    </div>
+
+                    <p class="credits">
+                        Desenvolvido por <strong>gabszap</strong> com Electron + JavaScript
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-link close-modal-btn">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div id="stats-modal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2><img src="../assets/bar-chart.svg" style="width:20px;height:20px;filter:invert(100%);"> Estatísticas
+                    de Uso</h2>
+                <button class="close-btn"><img src="../assets/x.svg" class="theme-icon"></button>
+            </div>
+            <div class="modal-body">
+                <div id="stats-empty" class="stats-empty" style="display: none;">
+                    <div class="stats-empty-icon">
+                        <img src="../assets/bar-chart.svg" style="width:22px;height:22px;filter:invert(100%);">
+                    </div>
+                    <h3>Sem dados ainda</h3>
+                    <p>Copie algumas hashtags para começar a gerar estatísticas.</p>
+                </div>
+
+                <div id="stats-shell">
+                    <div class="stats-summary-grid">
+                        <div class="stats-summary-card">
+                            <div class="stats-summary-label">Total de cópias</div>
+                            <div class="stats-summary-value"><strong id="stat-total-copies">0</strong></div>
+                            <div class="stats-summary-sub">Cliques em personagens</div>
+                        </div>
+
+                        <div class="stats-summary-card">
+                            <div class="stats-summary-label">Top personagem</div>
+                            <div class="stats-summary-value" id="stat-top-char">—</div>
+                            <div class="stats-summary-sub" id="stat-top-char-sub"></div>
+                        </div>
+
+                        <div class="stats-summary-card">
+                            <div class="stats-summary-label">Top jogo</div>
+                            <div class="stats-summary-value" id="stat-top-game">—</div>
+                            <div class="stats-summary-sub" id="stat-top-game-sub"></div>
+                        </div>
+                    </div>
+
+                    <div class="stats-tabs-container">
+                        <button class="stats-tab-btn active" data-stats-tab="chars">
+                            <img src="../assets/bar-chart.svg" style="width:20px;height:20px;filter:invert(100%);">
+                            Personagens (Top 10)
+                        </button>
+                        <button class="stats-tab-btn" data-stats-tab="games">
+                            <img src="../assets/bar-chart2.svg" style="width:20px;height:20px;"> Jogos
+                        </button>
+                    </div>
+
+                    <div class="stats-content" id="stats-tab-chars">
+                        <div class="stats-split">
+                            <div class="stats-chart-wrap">
+                                <canvas id="chars-chart"></canvas>
+                            </div>
+                            <div class="stats-ranking">
+                                <div class="stats-ranking-header">Ranking</div>
+                                <div id="stats-chars-ranking" class="stats-ranking-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stats-content" id="stats-tab-games" style="display: none;">
+                        <div class="stats-split">
+                            <div class="stats-chart-wrap">
+                                <div class="pie-chart-container">
+                                    <canvas id="games-chart"></canvas>
+                                </div>
+                                <div id="games-legend" class="games-legend"></div>
+                            </div>
+                            <div class="stats-ranking">
+                                <div class="stats-ranking-header">Ranking</div>
+                                <div id="stats-games-ranking" class="stats-ranking-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer stats-footer">
+                <div class="stats-footer-left">
+                    <button id="btn-copy-stats" class="btn-outline">
+                        <img src="../assets/clipboard.svg" style="width:16px;height:16px;filter:invert(100%);"> Copiar
+                        resumo
+                    </button>
+                    <button id="btn-reset-stats" class="btn-red-outline">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            style="color: currentColor;">
+                            <path d="M3 6h18" />
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                            <line x1="10" x2="10" y1="11" y2="17" />
+                            <line x1="14" x2="14" y1="11" y2="17" />
+                        </svg>
+                        Limpar dados
+                    </button>
+                </div>
+                <button class="btn-link close-modal-btn">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content" style="max-width: 440px;">
+            <div class="modal-header">
+                <h2>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" style="color: var(--red);">
+                        <path d="M3 6h18" />
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                        <line x1="10" x2="10" y1="11" y2="17" />
+                        <line x1="14" x2="14" y1="11" y2="17" />
+                    </svg>
+                    <span id="confirm-title">Confirmar</span>
+                </h2>
+                <button class="close-btn"><img src="../assets/x.svg" class="theme-icon"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-message" class="modal-description" style="margin-bottom: 0;"></p>
+                <p id="confirm-danger-note" class="confirm-danger-note" style="display: none;"><strong>Atenção:</strong>
+                    essa ação não pode ser desfeita.</p>
+            </div>
+            <div class="modal-footer">
+                <button id="confirm-cancel" class="btn-secondary">Cancelar</button>
+                <button id="confirm-ok" class="btn-danger">Deletar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+
+</html>
