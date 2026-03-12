@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Window controls
   setAlwaysOnTop: (enabled) => ipcRenderer.invoke('set-always-on-top', enabled),
   setWindowSize: (width, height) => ipcRenderer.invoke('set-window-size', width, height),
+  windowMinimize: () => ipcRenderer.invoke('window-minimize'),
+  windowMaximize: () => ipcRenderer.invoke('window-maximize'),
+  windowClose: () => ipcRenderer.invoke('window-close'),
 
   // Data operations
   loadHashtags: () => ipcRenderer.invoke('load-hashtags'),
@@ -33,6 +36,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportBackup: (filePath) => ipcRenderer.invoke('export-backup', filePath),
   importBackup: (filePath) => ipcRenderer.invoke('import-backup', filePath),
 
+  // File operations (for import/export)
+  writeFile: (filePath, content) => ipcRenderer.invoke('write-file', filePath, content),
+  readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
+
   // Icon cache
   getIconCacheDir: () => ipcRenderer.invoke('get-icon-cache-dir'),
   openIconCacheDir: () => ipcRenderer.invoke('open-icon-cache-dir'),
@@ -40,4 +47,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // App info
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
 });

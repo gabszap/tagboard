@@ -1,14 +1,19 @@
 {
-  "name": "tag-app",
+  "name": "Tagboard",
   "version": "2.0.0",
-  "description": "Gerenciador de Hashtags para Jogos - JavaScript Edition",
+  "description": "Hashtag manager for game characters",
   "main": "src/main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gabszap/tagboard"
+  },
+  "homepage": "https://github.com/gabszap/tagboard",
   "scripts": {
     "start": "electron .",
     "dev": "cross-env NODE_ENV=development electron .",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
-    "build:mac": "electron-builder --mac",
+    "build:win:portable": "electron-builder --win portable",
     "build:linux": "electron-builder --linux",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
@@ -36,8 +41,8 @@
     "axios": "^1.6.2"
   },
   "build": {
-    "appId": "com.tagapp.desktop",
-    "productName": "TagApp",
+    "appId": "com.tagboard.desktop",
+    "productName": "Tagboard",
     "directories": {
       "output": "dist"
     },
@@ -47,16 +52,23 @@
       "node_modules/**/*"
     ],
     "win": {
-      "target": "nsis",
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "assets/icon.ico"
     },
-    "mac": {
-      "target": "dmg",
-      "icon": "assets/icon.icns"
+    "portable": {
+      "artifactName": "Tagboard-${version}-portable.exe"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "artifactName": "Tagboard-${version}-setup.exe"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "assets/icons"
+      "icon": "assets/icon_orig.png"
     }
   }
 }

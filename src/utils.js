@@ -1,8 +1,7 @@
 /**
- * Funções utilitárias para organização de personagens e jogos
+ * Utility functions for organizing characters and games
  */
 
-// Hashtags padrão por jogo
 const GAME_HASHTAGS = {
   "HSR": "#HonkaiStarRail #崩壊スターレイル",
   "GI": "#GenshinImpact #原神",
@@ -13,7 +12,6 @@ const GAME_HASHTAGS = {
   "GF2": "#GirlsFrontline2 #ドルフロ2"
 };
 
-// Jogos padrão
 const DEFAULT_GAMES = {
   "HSR": "Honkai: Star Rail",
   "GI": "Genshin Impact",
@@ -25,9 +23,9 @@ const DEFAULT_GAMES = {
 };
 
 /**
- * Normaliza o nome do personagem: primeira letra maiúscula, resto minúscula
- * @param {string} name - Nome do personagem
- * @returns {string} Nome normalizado
+ * Normalizes a character name: capitalize first letter, lowercase the rest
+ * @param {string} name - Character name
+ * @returns {string} Normalized name
  */
 function normalizeCharName(name) {
   return name.trim().replace(/\w\S*/g, (txt) => 
@@ -36,27 +34,24 @@ function normalizeCharName(name) {
 }
 
 /**
- * Adiciona as hashtags do jogo às tags customizadas
- * @param {string} customTags - Hashtags do personagem
- * @param {string} gameCode - Código do jogo/categoria
- * @param {Object} customCategoryHashtags - Dicionário com hashtags de categorias customizadas
- * @returns {string} String com as hashtags completas
+ * Prepends game hashtags to custom character tags
+ * @param {string} customTags - Character hashtags
+ * @param {string} gameCode - Game/category code
+ * @param {Object} customCategoryHashtags - Dictionary of custom category hashtags
+ * @returns {string} Full hashtag string
  */
 function addGameHashtags(customTags, gameCode, customCategoryHashtags = null) {
-  // Primeiro tentar hashtags padrão, depois customizadas
   let gameTags = GAME_HASHTAGS[gameCode] || "";
 
-  // Se não encontrou nas padrão, tentar nas customizadas
   if (!gameTags && customCategoryHashtags) {
     gameTags = customCategoryHashtags[gameCode] || "";
   }
 
-  // Se não há hashtags do jogo, retornar apenas as tags do personagem
   if (!gameTags) {
     return customTags;
   }
 
-  // Se já tiver as hashtags do jogo, não adicionar novamente
+  // Avoid adding game hashtags if they're already present
   if (gameCode === "HSR" && customTags.includes("#HonkaiStarRail")) {
     return customTags;
   } else if (gameCode === "ZZZ" && customTags.includes("#ZenlessZoneZero")) {
@@ -73,7 +68,7 @@ function addGameHashtags(customTags, gameCode, customCategoryHashtags = null) {
     return customTags;
   }
 
-  // Para categorias customizadas, verificar se já tem a primeira hashtag
+  // For custom categories, check if the first hashtag is already present
   if (customCategoryHashtags && customCategoryHashtags[gameCode]) {
     const firstHashtag = gameTags.split(" ")[0];
     if (firstHashtag && customTags.includes(firstHashtag)) {
@@ -81,24 +76,22 @@ function addGameHashtags(customTags, gameCode, customCategoryHashtags = null) {
     }
   }
 
-  // Adicionar as hashtags do jogo no início
   return `${gameTags} ${customTags}`.trim();
 }
 
 /**
- * Identifica o jogo com base no mapeamento customizado ou hashtags como fallback
- * @param {string} charName - Nome do personagem
- * @param {Object} hashtagsDict - Dicionário de hashtags por personagem
- * @param {Object} customGamesMap - Mapeamento de personagens para categorias/jogos
- * @returns {string} Código do jogo
+ * Identifies the game based on custom mapping or hashtags as fallback
+ * @param {string} charName - Character name
+ * @param {Object} hashtagsDict - Dictionary of hashtags per character
+ * @param {Object} customGamesMap - Mapping of characters to categories/games
+ * @returns {string} Game code
  */
 function getGame(charName, hashtagsDict, customGamesMap) {
-  // Se há um mapeamento customizado e o personagem está nele, usar ele (PRINCIPAL)
   if (customGamesMap && customGamesMap[charName]) {
     return customGamesMap[charName];
   }
 
-  // Fallback: tentar identificar pelas hashtags (para tags antigas ou padrão)
+  // Fallback: identify by hashtags (for legacy or default tags)
   const tags = hashtagsDict[charName] || "";
 
   if (tags.includes("#HonkaiStarRail") || tags.includes("#崩壊スターレイル")) {
@@ -116,46 +109,39 @@ function getGame(charName, hashtagsDict, customGamesMap) {
   } else if (tags.includes("#GenshinImpact") || tags.includes("#原神")) {
     return "GI";
   } else {
-    // Padrão: Genshin Impact
     return "GI";
   }
 }
 
 /**
- * Organiza personagens por jogo e ordena alfabeticamente
- * @param {Object} hashtagsDict - Dicionário de hashtags por personagem
- * @param {Object} customGamesMap - Mapeamento de personagens para categorias/jogos
- * @param {Object} customCategories - Dicionário de categorias personalizadas {código: nome}
- * @returns {Object} Dicionário com jogos e seus personagens organizados
+ * Organizes characters by game and sorts them alphabetically
+ * @param {Object} hashtagsDict - Dictionary of hashtags per character
+ * @param {Object} customGamesMap - Mapping of characters to categories/games
+ * @param {Object} customCategories - Dictionary of custom categories {code: name}
+ * @returns {Object} Dictionary with games and their organized characters
  */
 function organizeCharacters(hashtagsDict, customGamesMap, customCategories) {
   customCategories = customCategories || {};
 
-  // Iniciar com jogos padrão
   const games = {};
   for (const [code, name] of Object.entries(DEFAULT_GAMES)) {
     games[code] = { name: name, chars: [] };
   }
 
-  // Adicionar categorias personalizadas
   for (const [code, name] of Object.entries(customCategories)) {
     if (!games[code]) {
       games[code] = { name: name, chars: [] };
     }
   }
 
-  // Organizar personagens
   for (const charName of Object.keys(hashtagsDict)) {
     const game = getGame(charName, hashtagsDict, customGamesMap);
-    // Garantir que a categoria existe (pode ser uma categoria customizada)
     if (!games[game]) {
-      // Se a categoria não existe, criar uma nova com o código como nome
       games[game] = { name: game, chars: [] };
     }
     games[game].chars.push(charName);
   }
 
-  // Ordenar alfabeticamente (case insensitive)
   for (const game of Object.values(games)) {
     game.chars.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
   }
@@ -164,42 +150,42 @@ function organizeCharacters(hashtagsDict, customGamesMap, customCategories) {
 }
 
 /**
- * Valida um código de categoria
- * @param {string} code - Código a validar
- * @param {string[]} existingCodes - Lista de códigos já existentes
- * @returns {[boolean, string]} Tupla (válido, mensagem de erro se inválido)
+ * Validates a category code
+ * @param {string} code - Code to validate
+ * @param {string[]} existingCodes - List of already existing codes
+ * @returns {[boolean, string]} Tuple (valid, error message if invalid)
  */
 function validateCategoryCode(code, existingCodes) {
   if (!code || !code.trim()) {
-    return [false, "Código da categoria é obrigatório"];
+    return [false, "Category code is required"];
   }
 
   code = code.trim().toUpperCase();
 
   if (code.length < 2) {
-    return [false, "Código deve ter pelo menos 2 caracteres"];
+    return [false, "Code must be at least 2 characters"];
   }
 
   if (code.length > 10) {
-    return [false, "Código deve ter no máximo 10 caracteres"];
+    return [false, "Code must be at most 10 characters"];
   }
 
   if (!/^[A-Z0-9]+$/.test(code)) {
-    return [false, "Código deve conter apenas letras e números"];
+    return [false, "Code must contain only letters and numbers"];
   }
 
   if (existingCodes.includes(code)) {
-    return [false, `Código '${code}' já existe`];
+    return [false, `Code '${code}' already exists`];
   }
 
   return [true, ""];
 }
 
 /**
- * Gera um código de categoria baseado no nome
- * @param {string} name - Nome da categoria
- * @param {string[]} existingCodes - Lista de códigos já existentes
- * @returns {string} Código gerado único
+ * Generates a category code based on the name
+ * @param {string} name - Category name
+ * @param {string[]} existingCodes - List of already existing codes
+ * @returns {string} Unique generated code
  */
 function generateCategoryCode(name, existingCodes) {
   const words = name.trim().split(/\s+/);

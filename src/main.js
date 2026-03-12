@@ -3,9 +3,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const fsNative = require('fs');
 const os = require('os');
-// OBS: downloads via net (Chromium) respeitam proxy do sistema
 
-// Hot reload in development
 if (process.env.NODE_ENV === 'development') {
   const isWindows = process.platform === 'win32';
   const electronPath = isWindows
@@ -18,11 +16,7 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-// Disable GPU acceleration to fix Windows GPU crashes
-// app.disableHardwareAcceleration();
-
-// Data directory
-const DATA_DIR = path.join(os.homedir(), 'tag-app-js');
+const DATA_DIR = path.join(os.homedir(), 'tagboard');
 const CUSTOM_DATA_FILE = path.join(DATA_DIR, 'custom_data.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 const USAGE_STATS_FILE = path.join(DATA_DIR, 'usage_stats.json');
@@ -32,7 +26,6 @@ let mainWindow;
 
 const iconDownloadInflight = new Map();
 
-// Ensure data directory exists
 async function ensureDataDir() {
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
@@ -42,7 +35,6 @@ async function ensureDataDir() {
   }
 }
 
-// Create main window
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -50,6 +42,8 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     resizable: true,
+    frame: false,
+    autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -57,9 +51,35 @@ function createWindow() {
     },
     icon: path.join(__dirname, '..', 'assets', 'icon.ico'),
     show: false,
-    titleBarStyle: 'default',
     backgroundColor: '#1e1e2e'
   });
+
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') {
+      return;
+    }
+
+    const isF12 = input.key === 'F12';
+    const isDevToolsCombo =
+      input.key?.toLowerCase() === 'i' &&
+      input.control && input.shift;
+
+    if (!isF12 && !isDevToolsCombo) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const focusedWindow = BrowserWindow.getFocusedWindow();
+    if (!focusedWindow || focusedWindow.isDestroyed()) {
+      return;
+    }
+
+    focusedWindow.webContents.toggleDevTools();
+  });
+
+  mainWindow.setMenuBarVisibility(false);
+  mainWindow.removeMenu();
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
@@ -72,7 +92,6 @@ function createWindow() {
   });
 }
 
-// App event handlers
 app.whenReady().then(async () => {
   await ensureDataDir();
   createWindow();
@@ -85,14 +104,27 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
+  app.quit();
+});
+
+ipcMain.handle('window-minimize', async () => {
+  if (mainWindow) mainWindow.minimize();
+});
+
+ipcMain.handle('window-maximize', async () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
   }
 });
 
-// IPC Handlers
+ipcMain.handle('window-close', async () => {
+  if (mainWindow) mainWindow.close();
+});
 
-// Window controls
 ipcMain.handle('set-always-on-top', async (event, enabled) => {
   if (mainWindow) {
     mainWindow.setAlwaysOnTop(enabled);
@@ -109,7 +141,6 @@ ipcMain.handle('set-window-size', async (event, width, height) => {
   return { success: false, error: 'Window not found' };
 });
 
-// Load hashtags data
 ipcMain.handle('load-hashtags', async () => {
   try {
     const data = require('./data/hashtags.js');
@@ -119,13 +150,12 @@ ipcMain.handle('load-hashtags', async () => {
   }
 });
 
-// Load character icons data from chars.json
 ipcMain.handle('load-chars-data', async () => {
   try {
     const candidates = [
-      // Preferir pasta na raiz do app
+      // Prefer folder at app root
       path.join(__dirname, '..', 'Hoyo pfps', 'chars.json'),
-      // Local antigo (compatibilidade)
+      // Legacy location (backward compatibility)
       path.join(__dirname, '..', '..', 'Hoyo pfps', 'chars.json')
     ];
 
@@ -135,7 +165,7 @@ ipcMain.handle('load-chars-data', async () => {
         data = await fs.readFile(p, 'utf-8');
         break;
       } catch {
-        // Continua
+        // continue
       }
     }
 
@@ -152,7 +182,6 @@ ipcMain.handle('load-chars-data', async () => {
   }
 });
 
-// Load custom data
 ipcMain.handle('load-custom-data', async () => {
   try {
     const data = await fs.readFile(CUSTOM_DATA_FILE, 'utf-8');
@@ -171,7 +200,6 @@ ipcMain.handle('load-custom-data', async () => {
   }
 });
 
-// Save custom data
 ipcMain.handle('save-custom-data', async (event, data) => {
   try {
     await fs.writeFile(CUSTOM_DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
@@ -181,7 +209,6 @@ ipcMain.handle('save-custom-data', async (event, data) => {
   }
 });
 
-// Load config
 ipcMain.handle('load-config', async () => {
   try {
     const data = await fs.readFile(CONFIG_FILE, 'utf-8');
@@ -205,7 +232,6 @@ ipcMain.handle('load-config', async () => {
   }
 });
 
-// Save config
 ipcMain.handle('save-config', async (event, data) => {
   try {
     await fs.writeFile(CONFIG_FILE, JSON.stringify(data, null, 2), 'utf-8');
@@ -215,7 +241,6 @@ ipcMain.handle('save-config', async (event, data) => {
   }
 });
 
-// Load usage stats
 ipcMain.handle('load-usage-stats', async () => {
   try {
     const data = await fs.readFile(USAGE_STATS_FILE, 'utf-8');
@@ -235,7 +260,6 @@ ipcMain.handle('load-usage-stats', async () => {
   }
 });
 
-// Save usage stats
 ipcMain.handle('save-usage-stats', async (event, data) => {
   try {
     await fs.writeFile(USAGE_STATS_FILE, JSON.stringify(data, null, 2), 'utf-8');
@@ -245,7 +269,6 @@ ipcMain.handle('save-usage-stats', async (event, data) => {
   }
 });
 
-// Copy to clipboard
 ipcMain.handle('copy-to-clipboard', async (event, text) => {
   try {
     clipboard.writeText(text);
@@ -255,19 +278,16 @@ ipcMain.handle('copy-to-clipboard', async (event, text) => {
   }
 });
 
-// Show save dialog
 ipcMain.handle('show-save-dialog', async (event, options) => {
   const result = await dialog.showSaveDialog(mainWindow, options);
   return result;
 });
 
-// Show open dialog
 ipcMain.handle('show-open-dialog', async (event, options) => {
   const result = await dialog.showOpenDialog(mainWindow, options);
   return result;
 });
 
-// Download icon
 ipcMain.handle('download-icon', async (event, url, filename) => {
   let cachePath = null;
   try {
@@ -289,7 +309,7 @@ ipcMain.handle('download-icon', async (event, url, filename) => {
 
     const job = (async () => {
       try {
-        // Pode ter sido criado enquanto aguardava
+        // May have been created while waiting
         try {
           await fs.access(cachePath);
           return { success: true, path: cachePath, cached: true };
@@ -333,7 +353,7 @@ function downloadUrlToFile(url, destPath, redirectsLeft = 2) {
     let request;
     try {
       request = net.request({ method: 'GET', url: String(url) });
-      request.setHeader('User-Agent', 'TagApp');
+      request.setHeader('User-Agent', 'Tagboard');
       request.setHeader('Accept', '*/*');
     } catch (err) {
       finish(err);
@@ -466,7 +486,24 @@ ipcMain.handle('clear-icon-cache', async () => {
   }
 });
 
-// Export backup
+ipcMain.handle('write-file', async (event, filePath, content) => {
+  try {
+    await fs.writeFile(filePath, content, 'utf-8');
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('read-file', async (event, filePath) => {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    return { success: true, content };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('export-backup', async (event, filePath) => {
   try {
     const AdmZip = require('adm-zip');
@@ -488,7 +525,6 @@ ipcMain.handle('export-backup', async (event, filePath) => {
   }
 });
 
-// Import backup
 ipcMain.handle('import-backup', async (event, filePath) => {
   try {
     const AdmZip = require('adm-zip');
@@ -510,7 +546,6 @@ ipcMain.handle('import-backup', async (event, filePath) => {
   }
 });
 
-// Get cache path
 ipcMain.handle('get-cache-path', async (event, filename) => {
   const cachePath = path.join(CACHE_DIR, filename);
   try {
@@ -521,7 +556,15 @@ ipcMain.handle('get-cache-path', async (event, filename) => {
   }
 });
 
-// Get app version
+ipcMain.handle('open-external', async (event, url) => {
+  try {
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('get-app-version', async () => {
   try {
     const packageJson = require('../package.json');
@@ -531,7 +574,6 @@ ipcMain.handle('get-app-version', async () => {
   }
 });
 
-// Reorder characters
 ipcMain.handle('reorder-characters', async (event, gameCode, newOrder) => {
   try {
     const data = await fs.readFile(CUSTOM_DATA_FILE, 'utf-8');

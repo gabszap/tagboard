@@ -1,7 +1,6 @@
 legacy/
 __pycache__/
-Hoyo pfps/
-
+*.bak
 
 # Node.js / Bun
 node_modules/
@@ -38,8 +37,12 @@ logs/
 *.log
 
 # User data (preserving privacy)
+tagboard/
 tag-app-js/
 *.json.bak
+*backup.json
+*bkp.json
+*-newmodel.json
 
 # Build artifacts
 build/

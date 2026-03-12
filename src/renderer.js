@@ -1,9 +1,8 @@
 /**
- * TagApp - Renderer Process
- * UI moderna inspirada no app Python
+ * Tagboard - Renderer Process
+ * Modern UI inspired by the Python app
  */
 
-// App state
 let appState = {
   hashtags: {},
   charsData: {},
@@ -25,7 +24,6 @@ const DEFAULT_GAMES = {
   "GF2": "Girls' Frontline 2"
 };
 
-// DOM Elements
 const elements = {
   searchInput: document.getElementById('search-input'),
   btnClearSearch: document.getElementById('btn-clear-search'),
@@ -58,7 +56,6 @@ const _iconQueue = [];
 let _iconActive = 0;
 const ICON_CACHE_CONCURRENCY = 4;
 
-// Initialize
 document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
   setupEventListeners();
@@ -124,7 +121,7 @@ function syncCategorySelectOptions() {
 }
 
 function ensureSnackbarInBody() {
-  // Mantem o snackbar sempre acima dos modais (evita stacking context)
+  // Keep snackbar always above modals (avoids stacking context issues)
   if (!elements.snackbar) return;
   elements.snackbar.classList.add('snackbar-stack');
   if (elements.snackbar.parentElement === document.body) return;
@@ -144,13 +141,13 @@ function enhanceNativeSelect(selectEl, { withIcons }) {
   selectEl.dataset.fancySelect = '1';
 
   const GAME_ICONS = {
-    HSR: '../assets/hsr.png',
-    GI: '../assets/gi.png',
-    HI3: '../assets/hi3.png',
-    ZZZ: '../assets/zzz.png',
-    WW: '../assets/wuwa.png',
-    BA: '../assets/bluearchive.png',
-    GF2: '../assets/gf2.png',
+    HSR: '../assets/games/hsr.png',
+    GI: '../assets/games/gi.png',
+    HI3: '../assets/games/hi3.png',
+    ZZZ: '../assets/games/zzz.png',
+    WW: '../assets/games/wuwa.png',
+    BA: '../assets/games/bluearchive.png',
+    GF2: '../assets/games/gf2.png',
   };
 
   const wrapper = document.createElement('div');
@@ -175,11 +172,7 @@ function enhanceNativeSelect(selectEl, { withIcons }) {
   let activeIndex = -1;
 
   function arrowSvg() {
-    return `
-      <svg class="cs-arrow" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    `;
+    return `<img class="cs-arrow" src="../assets/icons/chevron-down.svg" alt="">`;
   }
 
   function getSelectedOption() {
@@ -223,7 +216,7 @@ function enhanceNativeSelect(selectEl, { withIcons }) {
       });
 
       item.addEventListener('mousedown', (e) => {
-        // Evita perder o foco do botão e piscar/fechar antes do click
+        // Prevents losing button focus and flickering/closing before click
         e.preventDefault();
       });
 
@@ -254,7 +247,7 @@ function enhanceNativeSelect(selectEl, { withIcons }) {
       if (left + m.width > vw - 8) left = vw - m.width - 8;
       if (left < 8) left = 8;
 
-      // Se nao cabe pra baixo, abre pra cima
+      // If it doesn't fit below, open upwards
       if (top + m.height > vh - 8) {
         top = rect.top - m.height - 8;
       }
@@ -286,7 +279,7 @@ function enhanceNativeSelect(selectEl, { withIcons }) {
     menu.classList.add('show');
     positionMenu();
 
-    // Ativa o selecionado por padrao
+    // Activate the selected item by default
     const idx = Array.from(selectEl.options).findIndex((o) => o.value === selectEl.value);
     setActiveIndex(idx >= 0 ? idx : 0);
   }
@@ -348,7 +341,7 @@ function enhanceNativeSelect(selectEl, { withIcons }) {
     if (isOpen) positionMenu();
   });
 
-  // Scroll dentro do modal tambem reposiciona (capture)
+  // Scroll inside modal also repositions (capture phase)
   window.addEventListener(
     'scroll',
     () => {
@@ -375,6 +368,10 @@ function closeAllFancySelectMenus() {
   });
 }
 
+function normalizeSortMode(mode) {
+  return mode === 'custom' ? 'custom' : 'alphabetical';
+}
+
 async function loadData() {
   try {
     const [hashtagsResult, charsResult, customResult, configResult, statsResult] = await Promise.all([
@@ -391,6 +388,11 @@ async function loadData() {
     if (configResult.success) appState.config = { ...appState.config, ...configResult.data };
     if (statsResult.success) appState.usageStats = statsResult.data;
 
+    appState.config.sort_mode = normalizeSortMode(appState.config.sort_mode);
+    if (elements.sortSelect) {
+      elements.sortSelect.value = appState.config.sort_mode;
+    }
+
     organizeGames();
 
     // Apply persisted UI modes
@@ -401,7 +403,7 @@ async function loadData() {
     try {
       await window.electronAPI.setAlwaysOnTop(!!appState.config.compact_mode);
     } catch {
-      // Ignorar (ex: API indisponivel em algum contexto)
+      // Ignore (e.g. API unavailable in some context)
     }
   } catch (error) {
     console.error('Error loading data:', error);
@@ -430,7 +432,7 @@ function applyCompactMode() {
 
   const pinImg = elements.btnPin?.querySelector('img');
   if (pinImg) {
-    pinImg.src = enabled ? '../assets/disabled-pushpin.svg' : '../assets/pushpin.svg';
+    pinImg.src = enabled ? '../assets/icons/disabled-pushpin.svg' : '../assets/icons/pushpin.svg';
   }
 }
 
@@ -440,11 +442,11 @@ function normalizeSearchText(value) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
-  // Mantem letras/numeros (inclui unicode quando suportado)
+  // Keep letters/numbers (includes unicode when supported)
   try {
     return lower.replace(/[^\p{L}\p{N}]+/gu, " ").trim();
   } catch {
-    // Fallback sem unicode property escapes
+    // Fallback without unicode property escapes
     return lower.replace(/[^a-z0-9]+/g, " ").trim();
   }
 }
@@ -480,13 +482,13 @@ function doesNameMatchSearch(name, searchQuery) {
   const nameTokens = nameNorm.split(/\s+/).filter(Boolean);
   const joined = nameTokens.join("");
 
-  // Quando o usuario digita apenas 1 letra, filtra pela primeira letra do nome
+  // When user types only 1 letter, filter by first letter of the name
   if (searchQuery.isSingleLetter) {
     const letter = searchQuery.tokens[0];
     return (nameTokens[0] || '').startsWith(letter);
   }
 
-  // Para termos maiores: prefixo de palavra OU substring em qualquer lugar
+  // For longer terms: word prefix OR substring anywhere
   return searchQuery.tokens.every((qt) => {
     return (
       nameTokens.some((nt) => nt.startsWith(qt)) ||
@@ -619,7 +621,7 @@ function setImageSrcWithCache(imgEl, remoteUrl) {
     return;
   }
 
-  // Mostra imediatamente (geralmente vem do cache de memória do Chromium)
+  // Show immediately (usually comes from Chromium's memory cache)
   if (imgEl.src !== url) {
     imgEl.src = url;
   }
@@ -627,7 +629,7 @@ function setImageSrcWithCache(imgEl, remoteUrl) {
     setTimeout(() => imgEl.onload?.(), 0);
   }
 
-  // Em paralelo, tenta usar cache local persistente
+  // In parallel, try to use persistent local cache
   getCachedIconFileUrl(url)
     .then((fileUrl) => {
       if (fileUrl) {
@@ -641,7 +643,7 @@ function setImageSrcWithCache(imgEl, remoteUrl) {
         return;
       }
 
-      // Nao cacheado ainda: baixa e troca para local quando terminar
+      // Not cached yet: download and swap to local when done
       ensureIconCached(url).then((cachedUrl) => {
         if (!cachedUrl) return;
         _iconFileUrlByRemote.set(url, cachedUrl);
@@ -662,7 +664,6 @@ function organizeGames() {
   const allHashtags = { ...appState.hashtags };
   const hiddenChars = appState.customData.hidden_chars || [];
 
-  // Add custom characters
   if (appState.customData.games) {
     Object.values(appState.customData.games).forEach(gameData => {
       if (gameData.characters) {
@@ -673,13 +674,11 @@ function organizeGames() {
     });
   }
 
-  // Initialize games
   appState.games = {};
   Object.entries(DEFAULT_GAMES).forEach(([code, name]) => {
     appState.games[code] = { name, chars: [] };
   });
 
-  // Add custom categories (even if empty)
   if (appState.customData.games) {
     Object.entries(appState.customData.games).forEach(([code, gameData]) => {
       if (DEFAULT_GAMES[code]) return;
@@ -697,7 +696,6 @@ function organizeGames() {
     }
   });
 
-  // Assign characters
   Object.entries(allHashtags).forEach(([charName, hashtags]) => {
     // Skip hidden characters
     if (hiddenChars.includes(charName)) return;
@@ -711,21 +709,32 @@ function organizeGames() {
     }
   });
 
-  // Sort characters
-  Object.values(appState.games).forEach(game => {
-    game.chars.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+  Object.entries(appState.games).forEach(([gameCode, game]) => {
+    const isCustomSort = normalizeSortMode(appState.config.sort_mode) === 'custom';
+    const customOrder = appState.customData.games?.[gameCode]?.order || [];
+
+    if (isCustomSort && customOrder.length) {
+      game.chars.sort((a, b) => {
+        const idxA = customOrder.indexOf(a);
+        const idxB = customOrder.indexOf(b);
+        if (idxA > -1 && idxB > -1) return idxA - idxB;
+        if (idxA > -1) return -1;
+        if (idxB > -1) return 1;
+        return a.toLowerCase().localeCompare(b.toLowerCase());
+      });
+    } else {
+      game.chars.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    }
   });
 }
 
 function getGameFromHashtags(charName, hashtags) {
-  // Check custom data first
   if (appState.customData.games) {
     for (const [gameCode, gameData] of Object.entries(appState.customData.games)) {
       if (gameData.characters?.[charName]) return gameCode;
     }
   }
 
-  // Check hashtags content
   if (hashtags.includes('#HonkaiStarRail')) return 'HSR';
   if (hashtags.includes('#GenshinImpact')) return 'GI';
   if (hashtags.includes('#HonkaiImpact3rd')) return 'HI3';
@@ -804,7 +813,7 @@ function findCharDataForName(charName, preferredGameCode) {
   const foundCurrent = tryGame(appState.currentGame);
   if (foundCurrent) return foundCurrent;
 
-  // Fallback: procurar em todos os jogos (para categorias customizadas/mistas)
+  // Fallback: search across all games (for custom/mixed categories)
   for (const list of Object.values(appState.charsData || {})) {
     const found = (Array.isArray(list) ? list : []).find(matches);
     if (found) return found;
@@ -814,13 +823,12 @@ function findCharDataForName(charName, preferredGameCode) {
 }
 
 function setupEventListeners() {
-  // Search
   elements.searchInput.addEventListener('input', (e) => {
     const prev = buildSearchQuery(appState.searchTerm);
     appState.searchTerm = e.target.value;
     const next = buildSearchQuery(appState.searchTerm);
 
-    // Ao limpar a busca, volta para a primeira categoria
+    // When clearing search, switch back to the first category
     if (prev.tokens.length && next.tokens.length === 0) {
       appState.currentGame = getFirstCategoryCode();
     }
@@ -845,17 +853,31 @@ function setupEventListeners() {
     await renderCharacters({ animate: true });
   });
 
-  // Sort
-  elements.sortSelect.addEventListener('change', () => {
+  elements.sortSelect.addEventListener('change', async () => {
+    const nextSortMode = normalizeSortMode(elements.sortSelect.value);
+    if (elements.sortSelect.value !== nextSortMode) {
+      elements.sortSelect.value = nextSortMode;
+    }
+
+    const hasModeChanged = appState.config.sort_mode !== nextSortMode;
+    appState.config.sort_mode = nextSortMode;
+
+    organizeGames();
+    renderGameTabs();
     renderCharacters();
+
+    if (!hasModeChanged) return;
+
+    const result = await window.electronAPI.saveConfig(appState.config);
+    if (!result?.success) {
+      showSnackbar('Erro ao salvar ordenação', 'error');
+    }
   });
 
   setupGameTabsScrolling();
 
-  // Pin button
   elements.btnPin.addEventListener('click', toggleCompactMode);
 
-  // Stats
   elements.btnStats.addEventListener('click', showStatsModal);
 
   const btnCopyStats = document.getElementById('btn-copy-stats');
@@ -864,10 +886,8 @@ function setupEventListeners() {
   const btnResetStats = document.getElementById('btn-reset-stats');
   btnResetStats?.addEventListener('click', resetUsageStats);
 
-  // Add menu
   elements.btnAddMenu.addEventListener('click', () => showModal('add-menu-modal'));
 
-  // Refresh button
   elements.btnRefresh?.addEventListener('click', async () => {
     await loadData();
     syncCategorySelectOptions();
@@ -876,44 +896,59 @@ function setupEventListeners() {
     showSnackbar('🔄 Dados atualizados!', 'success');
   });
 
-  // About button
-  elements.btnAbout?.addEventListener('click', () => {
+  elements.btnAbout?.addEventListener('click', async () => {
     const totalChars = Object.keys(appState.hashtags).length +
       Object.values(appState.customData.games || {}).reduce((acc, game) =>
         acc + Object.keys(game.characters || {}).length, 0);
     const totalGames = Object.keys(appState.games).length;
+    const totalCopies = appState.usageStats?.total_clicks || 0;
 
     document.getElementById('about-total-chars').textContent = totalChars;
     document.getElementById('about-total-games').textContent = totalGames;
+    document.getElementById('about-total-copies').textContent = totalCopies;
+
+    try {
+      const versionResult = await window.electronAPI.getAppVersion();
+      if (versionResult.success) {
+        document.getElementById('about-version').textContent = `v${versionResult.version}`;
+      }
+    } catch { }
 
     showModal('about-modal');
   });
 
-  // Config button (settings)
+  document.getElementById('about-github')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.electronAPI.openExternal('https://github.com/gabszap/tagboard');
+  });
+
+  document.getElementById('btn-window-minimize')?.addEventListener('click', () => {
+    window.electronAPI.windowMinimize();
+  });
+  document.getElementById('btn-window-close')?.addEventListener('click', () => {
+    window.electronAPI.windowClose();
+  });
+
   elements.btnConfig?.addEventListener('click', () => {
     showModal('settings-modal');
     loadSettingsValues();
     setSettingsPanel('appearance');
   });
 
-  // Categories button
   elements.btnCategories?.addEventListener('click', () => {
     showModal('categories-modal');
     renderCategoriesList();
   });
 
-  // Clear clipboard button
   elements.btnClearClipboard?.addEventListener('click', () => {
     window.electronAPI.copyToClipboard('');
     showSnackbar('📋 Clipboard limpo!', 'success');
   });
 
-  // Close modals
   document.querySelectorAll('.close-btn, .close-modal-btn').forEach(btn => {
     btn.addEventListener('click', closeTopModal);
   });
 
-  // Theme toggle UI (settings)
   const themeToggle = document.getElementById('theme-toggle');
   themeToggle?.addEventListener('change', () => {
     syncThemeToggleUi();
@@ -927,14 +962,12 @@ function setupEventListeners() {
 
   initConfirmModal();
 
-  // Test area
   elements.testInput.addEventListener('paste', (e) => {
     setTimeout(() => {
       elements.testInput.value = processHashtags(elements.testInput.value);
     }, 0);
   });
 
-  // Stats tabs
   document.querySelectorAll('.stats-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.stats-tab-btn').forEach(b => b.classList.remove('active'));
@@ -951,7 +984,6 @@ function setupEventListeners() {
     });
   });
 
-  // Modal buttons
   const btnAddChar = document.getElementById('btn-add-char');
   const btnSaveTag = document.getElementById('btn-save-tag');
   const btnDeleteTag = document.getElementById('btn-delete-tag');
@@ -997,7 +1029,7 @@ function setupEventListeners() {
 
     if (!charName || !hashtags || !gameCode) return;
 
-    // Remove versão anterior em qualquer categoria para evitar duplicata
+    // Remove previous version in any category to avoid duplicates
     removeCharacterFromCustomGames(charName);
 
     if (!appState.customData.games[gameCode]) {
@@ -1042,7 +1074,6 @@ function setupEventListeners() {
     }
   });
 
-  // Batch add
   btnBatchAdd?.addEventListener('click', async () => {
     const game = document.getElementById('batch-char-game')?.value;
     const batchText = document.getElementById('batch-tags-input')?.value.trim();
@@ -1071,7 +1102,6 @@ function setupEventListeners() {
 
       if (!charName) continue;
 
-      // Normalize name
       charName = charName.replace(/\w\S*/g, (txt) =>
         txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
       );
@@ -1101,7 +1131,6 @@ function setupEventListeners() {
     showSnackbar(`✅ ${addedCount} tag(s) adicionada(s)!`, 'success');
   });
 
-  // Add category
   btnAddCategory?.addEventListener('click', async () => {
     const name = document.getElementById('new-category-name')?.value.trim();
     const code = document.getElementById('new-category-code')?.value.trim().toUpperCase();
@@ -1112,10 +1141,13 @@ function setupEventListeners() {
       return;
     }
 
-    // Generate code if not provided
+    if (!hashtags) {
+      showSnackbar('Hashtags da categoria são obrigatórias', 'error');
+      return;
+    }
+
     const categoryCode = code || name.substring(0, 4).toUpperCase();
 
-    // Check if code already exists
     if (appState.customData.games[categoryCode] || DEFAULT_GAMES[categoryCode]) {
       showSnackbar(`Código ${categoryCode} já existe!`, 'error');
       return;
@@ -1128,7 +1160,6 @@ function setupEventListeners() {
       characters: {}
     };
 
-    // Add to order
     if (!appState.customData.category_order.includes(categoryCode)) {
       appState.customData.category_order.push(categoryCode);
     }
@@ -1146,17 +1177,13 @@ function setupEventListeners() {
     showSnackbar('Categoria criada!', 'success');
   });
 
-  // Save settings
   btnSaveSettings?.addEventListener('click', async () => {
-    // Get theme
     const selectedTheme = document.querySelector('input[name="theme-style"]:checked');
     if (selectedTheme) appState.config.theme_mode = selectedTheme.value;
 
-    // Get acrylic mode
     const acrylicToggle = document.getElementById('acrylic-toggle');
     if (acrylicToggle) appState.config.acrylic_mode = acrylicToggle.checked;
 
-    // Get advanced mode
     const advancedToggle = document.getElementById('advanced-mode-toggle');
     if (advancedToggle) appState.config.advanced_mode = advancedToggle.checked;
 
@@ -1164,14 +1191,12 @@ function setupEventListeners() {
 
     applyThemeMode();
 
-    // Apply acrylic
     applyAcrylicMode();
 
     closeAllModals();
     showSnackbar('Configurações salvas!', 'success');
   });
 
-  // Reset order
   btnResetOrder?.addEventListener('click', async () => {
     const ok = await confirmDialog({
       title: 'Resetar ordem',
@@ -1182,15 +1207,27 @@ function setupEventListeners() {
     });
     if (!ok) return;
 
-    appState.customData.category_order = Object.keys(DEFAULT_GAMES);
+    const defaultCategoryOrder = Object.keys(DEFAULT_GAMES);
+    const customCategoryCodes = Object.keys(appState.customData.games || {})
+      .filter((code) => !DEFAULT_GAMES[code]);
+
+    appState.customData.category_order = [...defaultCategoryOrder, ...customCategoryCodes];
+
+    Object.values(appState.customData.games || {}).forEach((gameData) => {
+      if (!gameData || typeof gameData !== 'object') return;
+      delete gameData.order;
+    });
+
     await window.electronAPI.saveCustomData(appState.customData);
 
+    organizeGames();
+    syncCategorySelectOptions();
     renderGameTabs();
+    renderCharacters();
     renderCategoriesList();
-    showSnackbar('Ordem resetada!', 'success');
+    showSnackbar('Ordem personalizada resetada!', 'success');
   });
 
-  // Export/Import data
   document.getElementById('btn-export-data')?.addEventListener('click', async () => {
     const result = await window.electronAPI.showSaveDialog({
       title: 'Exportar Custom Data',
@@ -1200,8 +1237,12 @@ function setupEventListeners() {
 
     if (!result.canceled && result.filePath) {
       const dataStr = JSON.stringify(appState.customData, null, 2);
-      await window.electronAPI.copyToClipboard(dataStr);
-      showSnackbar('📋 Dados copiados para clipboard!', 'success');
+      const writeResult = await window.electronAPI.writeFile(result.filePath, dataStr);
+      if (writeResult.success) {
+        showSnackbar('Custom data exportado com sucesso!', 'success');
+      } else {
+        showSnackbar(`Erro ao exportar: ${writeResult.error}`, 'error');
+      }
     }
   });
 
@@ -1213,11 +1254,54 @@ function setupEventListeners() {
     });
 
     if (!result.canceled && result.filePaths.length > 0) {
-      showSnackbar('📁 Função de importação em desenvolvimento', 'info');
+      try {
+        const readResult = await window.electronAPI.readFile(result.filePaths[0]);
+        if (!readResult.success) {
+          showSnackbar(`Erro ao ler arquivo: ${readResult.error}`, 'error');
+          return;
+        }
+
+        const importedData = JSON.parse(readResult.content);
+
+        // Validate basic structure of custom data
+        if (typeof importedData !== 'object' || importedData === null) {
+          showSnackbar('Arquivo invalido: formato incorreto', 'error');
+          return;
+        }
+
+        // Merge imported data with current data
+        if (importedData.games && typeof importedData.games === 'object') {
+          appState.customData.games = { ...appState.customData.games, ...importedData.games };
+        }
+        if (Array.isArray(importedData.category_order)) {
+          // Merge orders: keep existing and add new ones
+          const existingOrder = appState.customData.category_order || [];
+          const newCategories = importedData.category_order.filter(c => !existingOrder.includes(c));
+          appState.customData.category_order = [...existingOrder, ...newCategories];
+        }
+        if (Array.isArray(importedData.hidden_chars)) {
+          const existingHidden = appState.customData.hidden_chars || [];
+          const newHidden = importedData.hidden_chars.filter(c => !existingHidden.includes(c));
+          appState.customData.hidden_chars = [...existingHidden, ...newHidden];
+        }
+        if (importedData.deleted_custom_data && typeof importedData.deleted_custom_data === 'object') {
+          appState.customData.deleted_custom_data = {
+            ...(appState.customData.deleted_custom_data || {}),
+            ...importedData.deleted_custom_data
+          };
+        }
+
+        await window.electronAPI.saveCustomData(appState.customData);
+        renderGameTabs();
+        renderCharacters();
+        renderCategoriesList();
+        showSnackbar('Custom data importado com sucesso!', 'success');
+      } catch (e) {
+        showSnackbar(`Erro ao importar: ${e.message}`, 'error');
+      }
     }
   });
 
-  // Export/Import config
   document.getElementById('btn-export-config')?.addEventListener('click', async () => {
     const result = await window.electronAPI.showSaveDialog({
       title: 'Exportar Configurações',
@@ -1227,16 +1311,73 @@ function setupEventListeners() {
 
     if (!result.canceled && result.filePath) {
       const configStr = JSON.stringify(appState.config, null, 2);
-      await window.electronAPI.copyToClipboard(configStr);
-      showSnackbar('📋 Configurações copiadas!', 'success');
+      const writeResult = await window.electronAPI.writeFile(result.filePath, configStr);
+      if (writeResult.success) {
+        showSnackbar('Configurações exportadas com sucesso!', 'success');
+      } else {
+        showSnackbar(`Erro ao exportar: ${writeResult.error}`, 'error');
+      }
     }
   });
 
   document.getElementById('btn-import-config')?.addEventListener('click', async () => {
-    showSnackbar('📁 Função de importação em desenvolvimento', 'info');
+    const result = await window.electronAPI.showOpenDialog({
+      title: 'Importar Configurações',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile']
+    });
+
+    if (!result.canceled && result.filePaths.length > 0) {
+      try {
+        const readResult = await window.electronAPI.readFile(result.filePaths[0]);
+        if (!readResult.success) {
+          showSnackbar(`Erro ao ler arquivo: ${readResult.error}`, 'error');
+          return;
+        }
+
+        const importedConfig = JSON.parse(readResult.content);
+
+        if (typeof importedConfig !== 'object' || importedConfig === null) {
+          showSnackbar('Arquivo invalido: formato incorreto', 'error');
+          return;
+        }
+
+        // Validate and apply only known config fields
+        const validKeys = [
+          'theme_mode', 'layout_mode', 'sort_mode',
+          'advanced_mode', 'acrylic_mode', 'acrylic_opacity', 'compact_mode'
+        ];
+
+        for (const key of validKeys) {
+          if (key in importedConfig) {
+            appState.config[key] = importedConfig[key];
+          }
+        }
+
+        await window.electronAPI.saveConfig(appState.config);
+
+        // Apply visual settings
+        appState.config.sort_mode = normalizeSortMode(appState.config.sort_mode);
+        if (elements.sortSelect) {
+          elements.sortSelect.value = appState.config.sort_mode;
+        }
+        applyThemeMode();
+        applyAcrylicMode();
+        applyCompactMode();
+        try {
+          await window.electronAPI.setAlwaysOnTop(!!appState.config.compact_mode);
+        } catch { }
+        organizeGames();
+        renderGameTabs();
+        renderCharacters();
+
+        showSnackbar('Configurações importadas com sucesso!', 'success');
+      } catch (e) {
+        showSnackbar(`Erro ao importar: ${e.message}`, 'error');
+      }
+    }
   });
 
-  // Icon cache controls
   document.getElementById('btn-open-icon-cache')?.addEventListener('click', async () => {
     const res = await window.electronAPI.openIconCacheDir();
     if (!res?.success) {
@@ -1264,7 +1405,6 @@ function setupEventListeners() {
     showSnackbar(`Cache limpo: ${res.deleted || 0} arquivo(s)`, 'success');
   });
 
-  // Settings navigation (categories)
   setupSettingsNavigation();
 }
 
@@ -1298,7 +1438,7 @@ function setupGameTabsScrolling() {
   let dragged = false;
 
   elements.gameTabs.addEventListener('pointerdown', (e) => {
-    // Apenas botao esquerdo
+    // Left mouse button only
     if (e.button !== 0) return;
     const tabs = elements.gameTabs;
     const canScroll = tabs.scrollWidth > tabs.clientWidth + 2;
@@ -1315,7 +1455,7 @@ function setupGameTabsScrolling() {
     const tabs = elements.gameTabs;
     const dx = e.clientX - startX;
 
-    // Só entra em modo "arrasto" depois de passar o limiar
+    // Only enter drag mode after passing the threshold
     if (!dragged && Math.abs(dx) > 8) {
       dragged = true;
       tabs.classList.add('dragging');
@@ -1353,7 +1493,7 @@ function setupGameTabsScrolling() {
     }
   });
 
-  // Se o usuario arrastou, evita clicar na aba acidentalmente
+  // If user dragged, prevent accidental tab click
   elements.gameTabs.addEventListener(
     'click',
     (e) => {
@@ -1413,8 +1553,7 @@ function syncThemeToggleUi() {
   const iconEl = document.getElementById('theme-switch-icon');
   if (!themeToggle || !iconEl) return;
 
-  // Checked = dark mode
-  iconEl.setAttribute('src', themeToggle.checked ? '../assets/moon.svg' : '../assets/sun.svg');
+  iconEl.setAttribute('src', themeToggle.checked ? '../assets/icons/moon.svg' : '../assets/icons/sun.svg');
 }
 
 function renderGameTabs() {
@@ -1430,14 +1569,14 @@ function renderGameTabs() {
         ? game.chars.filter((name) => doesNameMatchSearch(name, search)).length
         : game.chars.length;
 
-      // Em modo de busca, esconde categorias sem resultados
+      // In search mode, hide categories without results
       if (search.tokens.length && count === 0) return null;
 
       return { gameCode, game, count };
     })
     .filter(Boolean);
 
-  // Se a categoria atual nao tem resultados na busca, muda para a primeira visivel
+  // If current category has no search results, switch to the first visible one
   if (search.tokens.length && tabItems.length) {
     const hasCurrent = tabItems.some((t) => t.gameCode === appState.currentGame);
     if (!hasCurrent) {
@@ -1457,7 +1596,6 @@ function renderGameTabs() {
     })
     .join('');
 
-  // Add click handlers
   elements.gameTabs.querySelectorAll('.game-tab').forEach(tab => {
     tab.addEventListener('click', async () => {
       const next = tab.dataset.game;
@@ -1483,7 +1621,6 @@ async function renderCharacters({ animate = false } = {}) {
   let chars = game.chars;
   const search = buildSearchQuery(appState.searchTerm);
 
-  // Filter by search
   if (search.tokens.length) {
     chars = chars.filter((char) => doesNameMatchSearch(char, search));
   }
@@ -1529,18 +1666,17 @@ async function renderCharacters({ animate = false } = {}) {
     return;
   }
 
-  // There are results
   grid.style.display = '';
   if (emptyWrap) emptyWrap.style.display = 'none';
 
-  // Se algum render anterior deixou a grade oculta, garante visibilidade
+  // If a previous render left the grid hidden, ensure visibility
   if (!animate) {
     grid.classList.remove('grid-switching');
   }
 
   if (animate) {
     grid.classList.add('grid-switching');
-    // Garante que a classe "pega" antes do clear
+    // Ensure the class takes effect before clearing
     await new Promise((r) => requestAnimationFrame(r));
     await new Promise((r) => window.setTimeout(r, 130));
     if (seq !== _renderCharsSeq) return;
@@ -1549,7 +1685,7 @@ async function renderCharacters({ animate = false } = {}) {
   grid.innerHTML = '';
 
   if (animate) {
-    // Volta a aparecer antes de terminar de montar tudo (fica mais responsivo)
+    // Show again before finishing assembly (feels more responsive)
     requestAnimationFrame(() => grid.classList.remove('grid-switching'));
   }
 
@@ -1569,10 +1705,73 @@ async function renderCharacters({ animate = false } = {}) {
   }
 }
 
+function captureCharacterPositions(container) {
+  const map = new Map();
+  if (!container) return map;
+
+  container.querySelectorAll('.character-item').forEach((el) => {
+    const key = el.dataset.char;
+    if (!key) return;
+    map.set(key, el.getBoundingClientRect());
+  });
+
+  return map;
+}
+
+function animateCharacterFlip(container, prevPositions, focusChars = []) {
+  if (!container || !prevPositions || prevPositions.size === 0) return;
+
+  const focusSet = new Set((focusChars || []).filter(Boolean));
+  const items = Array.from(container.querySelectorAll('.character-item'));
+  const moving = [];
+
+  items.forEach((el) => {
+    const key = el.dataset.char;
+    const prev = key ? prevPositions.get(key) : null;
+    if (!prev) return;
+
+    const next = el.getBoundingClientRect();
+    const dx = prev.left - next.left;
+    const dy = prev.top - next.top;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+
+    el.style.transform = `translate(${dx}px, ${dy}px) scale(0.985)`;
+    el.style.transition = 'transform 0s';
+    moving.push(el);
+  });
+
+  requestAnimationFrame(() => {
+    items.forEach((el) => {
+      if (!focusSet.has(el.dataset.char)) return;
+      el.classList.add('swap-hit');
+      window.setTimeout(() => el.classList.remove('swap-hit'), 360);
+    });
+
+    moving.forEach((el) => {
+      el.style.transition = 'transform 320ms cubic-bezier(0.16, 1, 0.3, 1)';
+      el.style.transform = '';
+      el.addEventListener(
+        'transitionend',
+        () => {
+          el.style.transition = '';
+          el.style.transform = '';
+        },
+        { once: true }
+      );
+    });
+  });
+}
+
 async function createCharacterElement(charName) {
   const div = document.createElement('div');
   div.className = 'character-item';
   div.dataset.char = charName;
+
+  const isCustomSort = normalizeSortMode(appState.config.sort_mode) === 'custom';
+  if (isCustomSort) {
+    div.draggable = true;
+    setupCharacterDragEvents(div);
+  }
 
   // Find character data in chars.json
   const hashtags = getHashtagsForChar(charName) || '';
@@ -1582,12 +1781,10 @@ async function createCharacterElement(charName) {
 
   const charData = findCharDataForName(charName, preferredGameCode);
 
-  // Create avatar container
   const avatarDiv = document.createElement('div');
   avatarDiv.className = 'character-avatar';
 
   if (charData?.icon) {
-    // Create image element
     const img = document.createElement('img');
     img.alt = '';
     img.loading = 'eager'; // Changed to eager to ensure immediate loading
@@ -1601,13 +1798,11 @@ async function createCharacterElement(charName) {
     loadingPlaceholder.textContent = '🎮';
     avatarDiv.appendChild(loadingPlaceholder);
 
-    // Handle load success
     img.onload = () => {
       loadingPlaceholder.remove();
       img.style.opacity = '1';
     };
 
-    // Handle load error
     img.onerror = () => {
       console.error(`[DEBUG] Image error for ${charName}`);
       if (!loadingPlaceholder.parentElement) {
@@ -1627,7 +1822,6 @@ async function createCharacterElement(charName) {
     avatarDiv.innerHTML = '<div class="placeholder">🎮</div>';
   }
 
-  // Create name element
   const nameDiv = document.createElement('div');
   nameDiv.className = 'character-name';
   nameDiv.textContent = charName;
@@ -1639,6 +1833,82 @@ async function createCharacterElement(charName) {
   div.addEventListener('contextmenu', (e) => showContextMenu(e, charName));
 
   return div;
+}
+
+function setupCharacterDragEvents(el) {
+  el.addEventListener('dragstart', (e) => {
+    // Only allow dragging in custom order mode
+    if (normalizeSortMode(appState.config.sort_mode) !== 'custom') {
+      e.preventDefault();
+      return;
+    }
+    el.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', el.dataset.char);
+    // Subtle overlay when dragging
+    setTimeout(() => el.style.opacity = '0.4', 0);
+  });
+
+  el.addEventListener('dragend', () => {
+    el.classList.remove('dragging');
+    el.style.opacity = '1';
+    // Clear drop styles from all items
+    document.querySelectorAll('.character-item').forEach(i => {
+      i.classList.remove('drag-over-left', 'drag-over-right', 'drag-over-swap');
+    });
+  });
+
+  el.addEventListener('dragover', (e) => {
+    if (normalizeSortMode(appState.config.sort_mode) !== 'custom') {
+      return;
+    }
+    e.preventDefault();
+    const draggingEl = document.querySelector('.character-item.dragging');
+    if (!draggingEl || draggingEl === el) return;
+
+    el.classList.remove('drag-over-left', 'drag-over-right');
+    el.classList.add('drag-over-swap');
+  });
+
+  el.addEventListener('dragleave', () => {
+    el.classList.remove('drag-over-left', 'drag-over-right', 'drag-over-swap');
+  });
+
+  el.addEventListener('drop', async (e) => {
+    if (normalizeSortMode(appState.config.sort_mode) !== 'custom') {
+      return;
+    }
+    e.preventDefault();
+    const draggedChar = e.dataTransfer.getData('text/plain');
+    const targetChar = el.dataset.char;
+    if (draggedChar === targetChar) return;
+
+    const gameCode = appState.currentGame;
+    const game = appState.games[gameCode];
+    if (!game) return;
+
+    const prevPositions = captureCharacterPositions(elements.charactersGrid);
+
+    const chars = [...game.chars];
+    const fromIdx = chars.indexOf(draggedChar);
+    const toIdx = chars.indexOf(targetChar);
+
+    if (fromIdx > -1 && toIdx > -1) {
+      // Direct swap between the two characters
+      [chars[fromIdx], chars[toIdx]] = [chars[toIdx], chars[fromIdx]];
+
+      if (!appState.customData.games[gameCode]) {
+        appState.customData.games[gameCode] = { characters: {}, order: [] };
+      }
+      appState.customData.games[gameCode].order = chars;
+
+      await window.electronAPI.saveCustomData(appState.customData);
+      
+      organizeGames();
+      await renderCharacters({ animate: false });
+      animateCharacterFlip(elements.charactersGrid, prevPositions, [draggedChar, targetChar]);
+    }
+  });
 }
 
 async function copyHashtags(charName) {
@@ -1673,30 +1943,36 @@ function showContextMenu(e, charName) {
 
   document.querySelectorAll('.context-menu').forEach(m => m.remove());
 
+  const isDefault = !!appState.hashtags[charName];
+  const isDevMode = !!appState.config.advanced_mode;
+
   const menu = document.createElement('div');
   menu.className = 'context-menu';
   menu.style.left = `${e.clientX}px`;
   menu.style.top = `${e.clientY}px`;
 
-  menu.innerHTML = `
-    <div class="context-menu-item" onclick="window.editCharacter('${charName}')">
-      <img src="../assets/pencil.svg" style="width:16px;height:16px;filter:invert(100%);"> Editar
+  // "Disabled" style for default categories without dev mode
+  const disableClass = (isDefault && !isDevMode) ? 'disabled' : '';
+
+  let menuContent = `
+    <div class="context-menu-item ${disableClass}" onclick="window.editCharacter('${charName}')">
+      <img src="../assets/icons/pencil.svg" style="width:16px;height:16px;filter:invert(100%);"> Editar
     </div>
     <div class="context-menu-item" onclick="window.cloneCharacter('${charName}')">
-      <img src="../assets/clone.svg" style="width:16px;height:16px;filter:invert(100%);"> Clonar
-    </div>
-    <div class="context-menu-item" style="color:var(--red);" onclick="window.deleteCharacter('${charName}')">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: currentColor;">
-        <path d="M3 6h18"/>
-        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-        <line x1="10" x2="10" y1="11" y2="17"/>
-        <line x1="14" x2="14" y1="11" y2="17"/>
-      </svg>
-      Deletar
+      <img src="../assets/icons/clipboard.svg" style="width:16px;height:16px;filter:invert(100%);"> Clonar
     </div>
   `;
 
+  // Delete button: for default categories, stays dimmed/locked without dev mode
+  const deleteDisableClass = (isDefault && !isDevMode) ? 'disabled' : '';
+  
+  menuContent += `
+    <div class="context-menu-item ${deleteDisableClass}" style="color:var(--red);" onclick="window.deleteCharacter('${charName}')">
+      <img src="../assets/icons/trash.svg" width="16" height="16" class="icon-red" alt=""> Deletar
+    </div>
+  `;
+
+  menu.innerHTML = menuContent;
   document.body.appendChild(menu);
 
   setTimeout(() => {
@@ -1713,7 +1989,7 @@ window.editCharacter = function (charName) {
   const isDefault = !!appState.hashtags[charName];
   const isDevMode = !!appState.config.advanced_mode;
 
-  // Se for padrao e nao estiver em modo dev, bloqueia
+  // If default and not in dev mode, block editing
   if (isDefault && !isDevMode) {
     showSnackbar('⚠️ Tags padrões são protegidas. Ative o Modo Desenvolvedor.', 'error');
     return;
@@ -1721,7 +1997,7 @@ window.editCharacter = function (charName) {
 
   const nameInput = document.getElementById('edit-char-name');
   nameInput.value = charName;
-  // Nome so pode ser editado em modo dev (mesmo para custom)
+  // Name can only be edited in dev mode (even for custom)
   nameInput.readOnly = !isDevMode;
   nameInput.classList.toggle('locked', !isDevMode);
 
@@ -1758,7 +2034,7 @@ window.deleteCharacter = async function (charName) {
   });
   if (!ok) return;
 
-  // Se for customizado, salva os dados antes de apagar para a lixeira
+  // If custom, save data before deleting to the recycle bin
   if (!isDefault) {
     const hashtags = getHashtagsForChar(charName);
     const gameCode = getGameFromHashtags(charName, hashtags || '');
@@ -1769,7 +2045,7 @@ window.deleteCharacter = async function (charName) {
     appState.customData.deleted_custom_data[charName] = { hashtags, gameCode };
   }
 
-  // Remove dos dados customizados
+  // Remove from custom data
   if (appState.customData.games) {
     Object.values(appState.customData.games).forEach(gameData => {
       if (gameData.characters?.[charName]) {
@@ -1778,7 +2054,7 @@ window.deleteCharacter = async function (charName) {
     });
   }
 
-  // Se for padrão, adiciona à lista de ocultos
+  // If default, add to hidden list
   if (isDefault) {
     if (!appState.customData.hidden_chars) {
       appState.customData.hidden_chars = [];
@@ -1842,7 +2118,7 @@ function buildStatsSummaryText() {
   const topGame = sortedGames[0];
 
   const lines = [];
-  lines.push('TagApp - Estatisticas de Uso');
+  lines.push('Tagboard - Estatisticas de Uso');
   lines.push('');
   lines.push(`Total de copias: ${total}`);
   if (topChar) lines.push(`Top personagem: ${topChar[0]} (${topChar[1]})`);
@@ -2377,7 +2653,7 @@ function confirmDialog({
 } = {}) {
   initConfirmModal();
 
-  // Fechar menus flutuantes para nao ficarem "perdidos" atras do overlay
+  // Close floating menus so they don't get "lost" behind the overlay
   closeAllFancySelectMenus();
   document.querySelectorAll('.context-menu').forEach((m) => m.remove());
 
@@ -2389,7 +2665,7 @@ function confirmDialog({
   const btnOk = document.getElementById('confirm-ok');
 
   if (!modal || !titleEl || !messageEl || !btnCancel || !btnOk) {
-    // Fallback (nao esperado)
+    // Fallback (not expected)
     return Promise.resolve(false);
   }
 
@@ -2415,10 +2691,10 @@ function confirmDialog({
   else if (variant === 'secondary') btnOk.classList.add('btn-secondary');
   else btnOk.classList.add('btn-danger');
 
-  // Abre sem fechar o modal atual (permite confirm em cima)
+  // Open without closing the current modal (allows confirm on top)
   modal.classList.add('show');
 
-  // Foco seguro no cancelar (evita Enter deletar por acidente)
+  // Safe focus on cancel (prevents accidental deletion via Enter)
   requestAnimationFrame(() => {
     btnCancel.focus();
   });
@@ -2524,25 +2800,19 @@ window.closeAllModalsExcept = function (modalId) {
   });
 };
 
-// Load settings values
 function loadSettingsValues() {
-  // Theme
   const themeMode = appState.config.theme_mode || 'mocha';
   const themeRadio = document.querySelector(`input[name="theme-style"][value="${themeMode}"]`);
   if (themeRadio) themeRadio.checked = true;
 
-  // Acrylic mode
   const acrylicToggle = document.getElementById('acrylic-toggle');
   if (acrylicToggle) acrylicToggle.checked = appState.config.acrylic_mode;
 
-  // Advanced mode
   const advancedToggle = document.getElementById('advanced-mode-toggle');
   if (advancedToggle) advancedToggle.checked = appState.config.advanced_mode || false;
 
-  // Hidden tags
   updateHiddenTagsUI();
 
-  // Icon cache path
   const cachePathEl = document.getElementById('icon-cache-path');
   if (cachePathEl && window.electronAPI.getIconCacheDir) {
     window.electronAPI.getIconCacheDir().then((res) => {
@@ -2615,14 +2885,12 @@ function getOrderDragAfterElement(container, y) {
   return closest.element;
 }
 
-// Render categories list
 function renderCategoriesList(prevOrderPositions = null) {
   const customList = document.getElementById('custom-categories-list');
   const orderList = document.getElementById('categories-order-list');
 
   if (!customList || !orderList) return;
 
-  // Custom categories
   let customHtml = '';
   const categoryOrder = appState.customData.category_order || Object.keys(DEFAULT_GAMES);
 
@@ -2642,13 +2910,7 @@ function renderCategoriesList(prevOrderPositions = null) {
           <div style="display:flex;gap:8px;align-items:center;">
             ${badge}
             <button onclick="deleteCategory('${gameCode}')" style="background:none;border:none;color:var(--red);cursor:pointer;padding:4px;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: currentColor;">
-                <path d="M3 6h18"/>
-                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-                <line x1="10" x2="10" y1="11" y2="17"/>
-                <line x1="14" x2="14" y1="11" y2="17"/>
-              </svg>
+              <img src="../assets/icons/trash.svg" width="16" height="16" class="icon-red" alt="">
             </button>
           </div>
         </div>
@@ -2658,7 +2920,6 @@ function renderCategoriesList(prevOrderPositions = null) {
 
   customList.innerHTML = customHtml || '<p style="color:var(--muted);font-size:0.9rem;">Nenhuma categoria customizada</p>';
 
-  // Order list
   let orderHtml = '';
   categoryOrder.forEach(gameCode => {
     const game = appState.games[gameCode];
@@ -2674,7 +2935,7 @@ function renderCategoriesList(prevOrderPositions = null) {
         <span>${game.name}</span>
         <div style="display:flex;gap:8px;align-items:center;">
           ${badge}
-          <img src="../assets/drag_handle.svg" class="drag-handle" style="width:16px;height:16px;filter:invert(60%);">
+          <img src="../assets/icons/drag_handle.svg" class="drag-handle" style="width:16px;height:16px;filter:invert(60%);">
         </div>
       </div>
     `;
@@ -2811,7 +3072,7 @@ function updateHiddenTagsUI() {
         <small style="font-size:0.7rem; color:var(--muted);">${isCustom ? 'Customizado' : 'Padrão'}</small>
       </div>
       <button onclick="restoreHiddenChar('${charName}')" class="restore-btn" title="Restaurar">
-        <img src="../assets/plus.svg" style="width:14px;height:14px;filter:invert(100%);">
+        <img src="../assets/icons/plus.svg" style="width:14px;height:14px;filter:invert(100%);">
       </button>
     `;
     hiddenList.appendChild(item);
@@ -2862,14 +3123,14 @@ async function emptyTrash() {
 window.restoreHiddenChar = async function(charName) {
   let restored = false;
 
-  // Tenta restaurar se for padrão
+  // Try to restore if it's a default character
   if (appState.customData.hidden_chars) {
     const originalLen = appState.customData.hidden_chars.length;
     appState.customData.hidden_chars = appState.customData.hidden_chars.filter(c => c !== charName);
     if (appState.customData.hidden_chars.length !== originalLen) restored = true;
   }
 
-  // Tenta restaurar se for customizado
+  // Try to restore if it's a custom character
   if (appState.customData.deleted_custom_data && appState.customData.deleted_custom_data[charName]) {
     const { hashtags, gameCode } = appState.customData.deleted_custom_data[charName];
     
@@ -2902,10 +3163,8 @@ async function restoreAllHiddenTags() {
   });
   if (!ok) return;
 
-  // Restaurar padrões
   appState.customData.hidden_chars = [];
 
-  // Restaurar customizadas
   if (appState.customData.deleted_custom_data) {
     Object.entries(appState.customData.deleted_custom_data).forEach(([charName, data]) => {
       const { hashtags, gameCode } = data;
